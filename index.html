@@ -1,471 +1,2165 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chatbot Xuân Lãng</title>
-<style>
-*,::before,::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-    --cw-navy:#0B3D62;
-    --cw-red:#C1272D;
-    --cw-green:#1B8A5A;
-    --cw-border:#DCE3E8;
-    --cw-muted:#5B6B76;
-    --cw-surface:#FFFFFF;
-}
-#cw-root{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    font-size:14px;
-    color:#12202B;
-}
-#cw-launcher{
-    position:fixed;
-    right:24px;bottom:24px;
-    width:60px;height:60px;
-    border-radius:50%;
-    border:none;
-    background:linear-gradient(135deg,#0f3a8a 0%,#1e54c7 100%);
-    color:#fff;
-    cursor:pointer;
-    display:flex;align-items:center;justify-content:center;
-    box-shadow:0 10px 30px rgba(15,23,42,.35),0 0 0 4px rgba(255,255,255,.85);
-    z-index:2147483647;
-    transition:transform .2s,box-shadow .2s;
-    animation:cw-popIn .5s cubic-bezier(.2,.9,.3,1.2) both;
-}
-#cw-launcher:hover{
-    transform:translateY(-3px) scale(1.05);
-    box-shadow:0 14px 36px rgba(15,23,42,.4),0 0 0 4px rgba(255,255,255,.9);
-}
-#cw-launcher:active{transform:scale(.97)}
-#cw-launcher.cw-open{
-    background:linear-gradient(135deg,#475569 0%,#64748b 100%);
-}
-#cw-badge{
-    position:absolute;
-    top:-4px;right:-4px;
-    min-width:20px;height:20px;padding:0 6px;
-    background:var(--cw-red);
-    color:#fff;border-radius:10px;
-    font-size:11px;font-weight:700;
-    display:flex;align-items:center;justify-content:center;
-    border:2px solid #fff;
-    animation:cw-pulse 1.6s ease-in-out infinite;
-}
-#cw-badge.cw-hide{display:none}
-#cw-panel{
-    position:fixed;
-    right:24px;bottom:100px;
-    width:420px;height:640px;
-    max-height:calc(100vh - 130px);
-    background:var(--cw-surface);
-    border-radius:14px;
-    box-shadow:0 24px 60px rgba(15,23,42,.3),0 0 0 1px rgba(15,23,42,.05);
-    display:flex;flex-direction:column;
-    overflow:hidden;
-    z-index:2147483646;
-    animation:cw-widgetIn .35s cubic-bezier(.2,.9,.3,1.05) both;
-}
-#cw-header{
-    background:linear-gradient(135deg,#0B3D62 0%,#1e54c7 100%);
-    color:#fff;
-    padding:14px 16px;
-    display:flex;align-items:center;justify-content:space-between;
-    box-shadow:0 2px 8px rgba(0,0,0,.08);
-}
-#cw-title{display:flex;align-items:center;gap:12px}
-#cw-avatar{
-    width:40px;height:40px;border-radius:50%;
-    background:rgba(255,255,255,.2);
-    display:flex;align-items:center;justify-content:center;
-    font-weight:700;font-size:14px;
-    border:2px solid rgba(255,255,255,.3);
-}
-#cw-name{font-weight:700;font-size:15px;line-height:1.2}
-#cw-sub{font-size:11px;opacity:.85;display:flex;align-items:center;gap:5px;margin-top:2px}
-#cw-dot{
-    display:inline-block;
-    width:7px;height:7px;border-radius:50%;
-    background:#4ade80;
-    box-shadow:0 0 0 2px rgba(74,222,128,.25);
-    animation:cw-pulse 2s ease-in-out infinite;
-}
-#cw-close{
-    background:rgba(255,255,255,.15);
-    border:none;color:#fff;
-    width:30px;height:30px;border-radius:50%;
-    cursor:pointer;font-size:14px;
-    transition:background .15s;
-}
-#cw-close:hover{background:rgba(255,255,255,.25)}
-#cw-chat{
-    flex:1;overflow-y:auto;
-    padding:14px;
-    background:#F7F9FB;
-    display:flex;flex-direction:column;gap:10px;
-}
-#cw-chat::-webkit-scrollbar{width:6px}
-#cw-chat::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
-.cw-msg{display:flex;gap:8px;animation:cw-fade .25s ease both}
-.cw-msg.user{flex-direction:row-reverse}
-.cw-avatar-small{
-    width:28px;height:28px;border-radius:50%;
-    background:var(--cw-navy);color:#fff;
-    display:flex;align-items:center;justify-content:center;
-    font-size:10px;font-weight:700;flex-shrink:0;
-}
-.cw-msg.user .cw-avatar-small{display:none}
-.cw-bubble{
-    max-width:80%;
-    padding:9px 12px;border-radius:12px;
-    background:#fff;color:#12202B;
-    box-shadow:0 1px 2px rgba(0,0,0,.05);
-    font-size:13.5px;line-height:1.45;
-    word-break:break-word;white-space:pre-wrap;
-}
-.cw-msg.user .cw-bubble{
-    background:var(--cw-navy);color:#fff;border-bottom-right-radius:3px;
-}
-.cw-msg.bot .cw-bubble{border-bottom-left-radius:3px}
-.cw-err-bubble{background:#fef2f2 !important;color:#991b1b !important;border:1px solid #fecaca !important}
-#cw-chips{
-    padding:8px 12px;
-    background:#fff;
-    border-top:1px solid var(--cw-border);
-    display:flex;gap:6px;flex-wrap:wrap;
-}
-.cw-chip{
-    padding:5px 11px;border-radius:20px;
-    background:#eef2ff;color:#3730a3;
-    font-size:12px;font-weight:500;
-    cursor:pointer;border:1px solid #c7d2fe;
-    transition:all .15s;
-}
-.cw-chip:hover{background:#c7d2fe}
-#cw-input-bar{
-    padding:10px 12px;
-    background:#fff;
-    border-top:1px solid var(--cw-border);
-    display:flex;gap:8px;
-}
-#cw-input{
-    flex:1;border:1px solid var(--cw-border);border-radius:9px;
-    padding:10px 13px;font-size:13.5px;
-    font-family:inherit;
-}
-#cw-input:focus{outline:2px solid var(--cw-navy);outline-offset:1px}
-#cw-send{
-    background:var(--cw-navy);color:#fff;border:none;
-    border-radius:9px;padding:0 18px;font-size:13.5px;
-    font-weight:600;cursor:pointer;font-family:inherit;
-}
-#cw-send:hover{background:#082A44}
-#cw-send:disabled{opacity:.5;cursor:default}
-.cw-card-list{display:flex;flex-direction:column;gap:8px;margin-top:6px}
-.cw-card{
-    background:#fff;border:1px solid var(--cw-border);border-radius:10px;
-    overflow:hidden;transition:all .15s;
-}
-.cw-card:hover{border-color:var(--cw-navy);box-shadow:0 4px 12px rgba(11,61,98,.1)}
-.cw-card-body{padding:10px 12px}
-.cw-card-code{font-size:11px;color:var(--cw-muted);font-weight:600}
-.cw-card-name{font-size:13.5px;font-weight:600;color:#12202B;margin-top:3px}
-.cw-card-online{
-    display:inline-block;margin-top:5px;
-    padding:2px 8px;border-radius:10px;
-    background:#dcfce7;color:#15803d;
-    font-size:11px;font-weight:600;
-}
-.cw-card-btn{
-    width:100%;padding:8px;border:none;
-    background:#f1f5f9;color:var(--cw-navy);
-    font-size:12px;font-weight:600;cursor:pointer;
-    border-top:1px solid var(--cw-border);
-    font-family:inherit;
-}
-.cw-card-btn:hover{background:#e2e8f0}
-.cw-detail-rows{margin-top:6px;font-size:13px}
-.cw-row{display:flex;gap:10px;padding:6px 0;border-bottom:1px dashed #e2e8f0}
-.cw-row:last-child{border-bottom:none}
-.cw-row-k{font-weight:600;color:var(--cw-muted);min-width:130px;font-size:12px}
-.cw-row-v{flex:1;color:#12202B}
-.cw-backdrop{
-    position:fixed;inset:0;
-    background:rgba(0,0,0,.5);
-    z-index:2147483645;
-}
-@keyframes cw-popIn{from{transform:scale(0)}to{transform:scale(1)}}
-@keyframes cw-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
-@keyframes cw-widgetIn{from{transform:scale(.85) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
-@keyframes cw-fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-@media (max-width:520px){
-    #cw-panel{right:10px;bottom:90px;width:calc(100vw - 20px);height:calc(100vh - 110px);max-width:none;border-radius:14px}
-    #cw-launcher{right:16px;bottom:16px;width:56px;height:56px}
-    .cw-bubble{max-width:90%}
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trợ lý tra cứu thủ tục hành chính</title>
+    <style>
+        :root {
+            --bg: #F4F6F8;
+            --surface: #FFFFFF;
+            --ink: #12202B;
+            --muted: #5B6B76;
+            --navy: #0B3D62;
+            --navy-deep: #082A44;
+            --red: #C1272D;
+            --red-deep: #9E1F24;
+            --green: #1B8A5A;
+            --border: #DCE3E8;
+            --radius: 10px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 14px;
+        }
+
+        h1,
+        h2,
+        h3,
+        .serif {
+            font-family: Georgia, "Times New Roman", serif;
+        }
+
+        .app {
+            max-width: 420px;
+            width: calc(100vw - 40px);
+            height: min(640px, calc(100vh - 100px));
+            position: fixed;
+            right: 20px;
+            bottom: 90px;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 18px 60px rgba(15, 23, 42, 0.25), 0 4px 14px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+            z-index: 100;
+            transform-origin: bottom right;
+            animation: widgetIn .25s cubic-bezier(.2,.9,.3,1.2);
+        }
+        .app[hidden] {
+            display: none !important;
+        }
+
+        @keyframes widgetIn {
+            from { transform: scale(.85) translateY(20px); opacity: 0; }
+            to   { transform: scale(1) translateY(0);     opacity: 1; }
+        }
+
+        /* NÚT ICON BONG BÓNG */
+        .chat-launcher {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #0f3a8a 0%, #1e54c7 100%);
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35), 0 0 0 4px rgba(255,255,255,0.85);
+            z-index: 101;
+            transition: transform .2s, box-shadow .2s;
+        }
+        .chat-launcher:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 14px 36px rgba(15, 23, 42, 0.4), 0 0 0 4px rgba(255,255,255,0.9);
+        }
+        .chat-launcher:active {
+            transform: translateY(0) scale(.97);
+        }
+        .chat-launcher.open {
+            background: linear-gradient(135deg, #475569 0%, #64748b 100%);
+        }
+        .chat-launcher-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            padding: 0 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 0 2px #fff;
+            animation: pulseBadge 1.8s ease-in-out infinite;
+        }
+        .chat-launcher-badge.hidden {
+            display: none;
+        }
+        @keyframes pulseBadge {
+            0%, 100% { transform: scale(1); }
+            50%      { transform: scale(1.18); }
+        }
+
+        /* NÚT ĐÓNG PANEL (thay thế nút Cài đặt cũ - sẽ ẩn trên mobile) */
+        .chat-close {
+            display: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            transition: background .15s;
+        }
+        .chat-close:hover { background: rgba(255,255,255,0.22); }
+        @media (max-width: 520px) {
+            .chat-close { display: inline-flex; }
+        }
+
+        /* Backdrop mobile */
+        .chat-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 99;
+            animation: fade .2s ease;
+        }
+        .chat-backdrop[hidden] { display: none !important; }
+
+        @media (max-width: 520px) {
+            .app {
+                right: 10px;
+                bottom: 90px;
+                width: calc(100vw - 20px);
+                height: calc(100vh - 110px);
+                max-width: none;
+                border-radius: 14px;
+            }
+            .chat-launcher {
+                right: 16px;
+                bottom: 16px;
+                width: 56px;
+                height: 56px;
+            }
+            .chat-close { display: flex; }
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 22px;
+            background: var(--navy);
+            color: #fff;
+        }
+
+        .header .title-block {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header .badge {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: var(--red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 17px;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .header p {
+            margin: 2px 0 0;
+            font-size: 12px;
+            color: #C9D8E4;
+        }
+
+        .header .status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #C9D8E4;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #8AA9BF;
+        }
+
+        .dot.ok {
+            background: #3FD08A;
+        }
+
+        .dot.bad {
+            background: #F0665B;
+        }
+
+        /* Ẩn toàn bộ khu vực cài đặt (panel + nút bật) - vì các tham số
+           đã được hardcode đúng theo dichvucong.cloudgo.vn, không cần
+           người dùng cuối chỉnh nữa. */
+        .settings,
+        #settingsToggle {
+            display: none !important;
+        }
+
+        /* Ẩn chỉ báo trạng thái "Chưa kiểm tra/Đã kết nối/Lỗi" trên header
+           vì đã ẩn panel Cài đặt và không còn nơi nào hợp lệ để bấm
+           "Kiểm tra kết nối". */
+        .status {
+            display: none !important;
+        }
+
+        .gear-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #fff;
+            border-radius: 8px;
+            padding: 7px 12px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .gear-btn:hover {
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        .settings {
+            background: #F0F3F5;
+            border-bottom: 1px solid var(--border);
+            padding: 0 22px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.25s ease, padding 0.25s ease;
+        }
+
+        .settings.open {
+            max-height: 620px;
+            padding: 16px 22px;
+            overflow-y: auto;
+        }
+
+        .settings-section-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--navy);
+            margin: 10px 0 6px;
+        }
+
+        .settings-section-title:first-child {
+            margin-top: 0;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 16px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .field label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .field input,
+        .field select {
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 8px 10px;
+            font-size: 13px;
+            background: #fff;
+            color: var(--ink);
+        }
+
+        .field .hint {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .settings-actions {
+            margin-top: 14px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 7px;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--red);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--red-deep);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--ink);
+        }
+
+        .btn-ghost:hover {
+            background: #E7ECEF;
+        }
+
+        .save-note {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .msg {
+            display: flex;
+            gap: 10px;
+            max-width: 100%;
+            animation: fade .2s ease;
+        }
+
+        @keyframes fade {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .msg.user {
+            justify-content: flex-end;
+        }
+
+        .bubble {
+            padding: 11px 14px;
+            border-radius: var(--radius);
+            line-height: 1.5;
+            max-width: 82%;
+        }
+
+        .msg.bot .bubble {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top-left-radius: 3px;
+        }
+
+        .msg.user .bubble {
+            background: var(--red);
+            color: #fff;
+            border-top-right-radius: 3px;
+        }
+
+        .avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--navy);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .proc-card {
+            display: flex;
+            gap: 10px;
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--navy);
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: #fff;
+        }
+
+        .proc-card.has-online {
+            border-left-color: var(--green);
+        }
+
+        .proc-card .body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .proc-card .code {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .proc-card .name {
+            font-size: 13.5px;
+            font-weight: 600;
+            margin: 2px 0 4px;
+        }
+
+        .proc-card .online-tag {
+            font-size: 11px;
+            color: var(--green);
+        }
+
+        .proc-card .meta-line {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .proc-card .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex-shrink: 0;
+            align-self: center;
+        }
+
+        .proc-card button {
+            border: 1px solid var(--navy);
+            background: #fff;
+            color: var(--navy);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .proc-card button:hover {
+            background: var(--navy);
+            color: #fff;
+        }
+
+        .proc-card button.secondary {
+            border-color: var(--border);
+            color: var(--ink);
+        }
+
+        .proc-card button.secondary:hover {
+            background: #EDF1F3;
+            color: var(--ink);
+        }
+
+        .detail-block {
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .detail-row {
+            display: flex;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .detail-row .k {
+            color: var(--muted);
+            min-width: 150px;
+            flex-shrink: 0;
+        }
+
+        .detail-row .v {
+            color: var(--ink);
+            word-break: break-word;
+        }
+
+        .detail-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .detail-actions button,
+        .detail-actions a {
+            border: 1px solid var(--border);
+            background: #F7F9FA;
+            color: var(--ink);
+            border-radius: 6px;
+            padding: 7px 11px;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .detail-actions button:hover,
+        .detail-actions a:hover {
+            background: #EDF1F3;
+        }
+
+        .pager {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            align-items: center;
+        }
+
+        .pager button {
+            border: 1px solid var(--border);
+            background: #fff;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .pager button:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .pager span {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .error-bubble {
+            border-left: 3px solid var(--red) !important;
+        }
+
+        .error-bubble .v {
+            color: var(--red-deep);
+        }
+
+        .help-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .help-list .row {
+            display: flex;
+            gap: 8px;
+            font-size: 12.5px;
+        }
+
+        .help-list code {
+            background: #F0F3F5;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .chips {
+            display: flex;
+            gap: 8px;
+            padding: 10px 22px 0;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            border: 1px solid var(--border);
+            background: #F7F9FA;
+            color: var(--ink);
+            border-radius: 16px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .chip:hover {
+            background: #EDF1F3;
+        }
+
+        .input-bar {
+            display: flex;
+            gap: 10px;
+            padding: 12px 22px 18px;
+        }
+
+        .input-bar input {
+            flex: 1;
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 11px 14px;
+            font-size: 14px;
+        }
+
+        .input-bar input:focus {
+            outline: 2px solid var(--navy);
+            outline-offset: 1px;
+        }
+
+        .send-btn {
+            background: var(--navy);
+            color: #fff;
+            border: none;
+            border-radius: 9px;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .send-btn:hover {
+            background: var(--navy-deep);
+        }
+
+        @media (max-width: 640px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .bubble {
+                max-width: 90%;
+            }
+        }
+    </style>
 </head>
+
 <body>
-<script>
-(function(){
-    'use strict';
 
-    const HTML = '<button id="cw-launcher" aria-label="Mở trợ lý chat"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg><span id="cw-badge">1</span></button><div id="cw-panel" hidden><div id="cw-header"><div id="cw-title"><div id="cw-avatar">TT</div><div><div id="cw-name">Trợ lý Xuân Lãng</div><div id="cw-sub"><span id="cw-dot"></span>Đang hoạt động</div></div></div><button id="cw-close" aria-label="Đóng chat">✕</button></div><div id="cw-chat"></div><div id="cw-chips"><div class="cw-chip" data-action="sample-search">Tìm "đăng ký kết hôn"</div><div class="cw-chip" data-action="xuanlang">Thủ tục xã Xuân Lãng</div><div class="cw-chip" data-action="categories">Danh mục / lĩnh vực</div><div class="cw-chip" data-action="myward">Thông tin xã</div></div><div id="cw-input-bar"><input id="cw-input" type="text" placeholder="Nhập tên thủ tục, mã, hoặc gõ /trogiup…"><button id="cw-send">Gửi</button></div></div><div class="cw-backdrop" id="cw-backdrop" hidden></div>';
+    <!-- NÚT ICON BONG BÓNG CHAT - góc dưới phải -->
+    <button class="chat-launcher" id="chatLauncher" aria-label="Mở chat trợ lý" title="Trợ lý Xuân Lãng">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+        </svg>
+        <span class="chat-launcher-badge" id="chatLauncherBadge">1</span>
+    </button>
 
-    function injectHTML(html){
-        const d=document.createElement('div');
-        d.id='cw-root';
-        d.innerHTML=html;
-        document.body.appendChild(d);
-    }
+    <div class="app" id="appPanel" hidden>
+        <div class="header">
+            <div class="title-block">
+                <div class="badge">TT</div>
+                <div>
+                    <h1>Trợ lý tra cứu thủ tục hành chính UBND xã Xuân Lãng</h1>
 
-    const S={
-        baseUrl:'https://dichvucong.cloudgo.vn',
-        mode:'gateway',
-        apiKey:'',
-        searchParam:'q',
-        provinceParam:'province_code',
-        categoryParam:'category_code',
-        agencyParam:'agency_code',
-        serviceGroupParam:'service_group_code',
-        pageSize:5
-    };
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+                <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Chưa kiểm tra</span>
+                </div>
+                <button class="gear-btn" id="settingsToggle">Cài đặt</button>
+                <button class="chat-close" id="chatClose" aria-label="Đóng chat">✕</button>
+            </div>
+        </div>
 
-    const pathFor=p=>S.baseUrl+(S.mode==='rest'?'/rest':'')+p;
-    const headersFor=()=>{const h={};if(S.mode==='rest'&&S.apiKey)h['X-API-Key']=S.apiKey;return h};
+        <div class="settings" id="settingsPanel">
+            <div class="settings-section-title">Kết nối</div>
+            <div class="settings-grid">
+                <div class="field full">
+                    <label for="baseUrl">Base URL</label>
+                    <input id="baseUrl" type="text" value="https://dichvucong.cloudgo.vn">
+                </div>
+                <div class="field">
+                    <label for="modeSelect">Chế độ gọi API</label>
+                    <select id="modeSelect">
+                        <option value="gateway">Cổng chung (/api) — tự gắn khóa</option>
+                        <option value="rest">API CRM/Zalo (/rest/api) — cần khóa</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="apiKey">X-API-Key</label>
+                    <input id="apiKey" type="password" placeholder="Chỉ cần khi dùng /rest">
+                </div>
+            </div>
 
-    async function callApi(path,params){
-        let url=pathFor(path);
-        if(params){
-            const clean={};
-            Object.keys(params).forEach(k=>{if(params[k]!=null&&params[k]!=='')clean[k]=params[k]});
-            const qs=new URLSearchParams(clean).toString();
-            if(qs)url+='?'+qs;
-        }
-        let res;
-        try{res=await fetch(url,{headers:headersFor()})}
-        catch(e){throw new Error('network')}
-        if(res.status===401||res.status===403)throw new Error('unauthorized');
-        if(res.status===404)throw new Error('notfound');
-        if(!res.ok)throw new Error('http_'+res.status);
-        return res.headers.get('content-type')?.includes('application/json')?res.json():res;
-    }
+            <div class="settings-section-title">Tên tham số truy vấn (kiểm tra lại trong /api/openapi.yaml nếu bộ lọc
+                không ra kết quả)</div>
+            <div class="settings-grid">
+                <div class="field">
+                    <label for="searchParam">Từ khóa tìm thủ tục</label>
+                    <input id="searchParam" type="text" value="q">
+                </div>
+                <div class="field">
+                    <label for="provinceParam">Mã tỉnh/thành</label>
+                    <input id="provinceParam" type="text" value="province_code">
+                </div>
+                <div class="field">
+                    <label for="categoryParam">Mã danh mục/lĩnh vực</label>
+                    <input id="categoryParam" type="text" value="category_code">
+                </div>
+                <div class="field">
+                    <label for="agencyParam">Mã cơ quan ban hành</label>
+                    <input id="agencyParam" type="text" value="agency_code">
+                </div>
+                <div class="field">
+                    <label for="serviceGroupParam">Mã nhóm dịch vụ</label>
+                    <input id="serviceGroupParam" type="text" value="service_group_code">
+                </div>
+                <div class="field">
+                    <label for="pageSize">Số kết quả mỗi trang</label>
+                    <input id="pageSize" type="text" value="5">
+                </div>
+            </div>
 
-    function errMsg(e){
-        switch(e.message){
-            case 'network':return 'Không gọi được máy chủ. Có thể do CORS hoặc Base URL sai.';
-            case 'unauthorized':return 'Thiếu hoặc sai X-API-Key.';
-            case 'notfound':return 'Không tìm thấy dữ liệu.';
-            default:return 'Lỗi: '+e.message+'. Vui lòng thử lại.';
-        }
-    }
+            <div class="settings-actions">
+                <button class="btn btn-primary" id="saveSettings">Lưu cài đặt</button>
+                <button class="btn btn-ghost" id="checkHealth">Kiểm tra kết nối</button>
+                <span class="save-note">Cài đặt chỉ lưu trong phiên này, không dùng localStorage.</span>
+            </div>
+        </div>
 
-    let $chat,$input,$sendBtn,$launcher,$panel,$closeBtn,$badge,$backdrop;
-    function dom(id){return document.getElementById(id)}
+        <div class="chat" id="chat"></div>
 
-    function txt(t){
-        const d=document.createElement('div');
-        d.textContent=(t==null?'':typeof t==='string'?t:(t&&(t.textContent||t.value))||String(t));
-        return d;
-    }
+        <div class="chips" id="chips">
+            <div class="chip" data-action="sample-search">Tìm "đăng ký kết hôn"</div>
+            <div class="chip" data-action="xuanlang">Thủ tục tại xã Xuân Lãng</div>
+            <div class="chip" data-action="categories">Danh mục / lĩnh vực</div>
+            <div class="chip" data-action="myward">Thông tin xã Xuân Lãng</div>
+        </div>
 
-    function appendChat(role,node){
-        const wrap=document.createElement('div');
-        wrap.className='cw-msg '+role;
-        if(role==='bot'){
-            const av=document.createElement('div');
-            av.className='cw-avatar-small';av.textContent='TT';
-            wrap.appendChild(av);
-        }
-        const b=document.createElement('div');
-        b.className='cw-bubble';
-        b.appendChild(node);
-        wrap.appendChild(b);
-        $chat.appendChild(wrap);
-        $chat.scrollTop=$chat.scrollHeight;
-        return b;
-    }
-    function addBot(t){return appendChat('bot',txt(t))}
-    function addUser(t){appendChat('user',txt(t))}
-    function addBotErr(e){appendChat('bot',txt(errMsg(e))).classList.add('cw-err-bubble')}
+        <div class="input-bar">
+            <input id="userInput" type="text" placeholder="Nhập tên thủ tục, mã thủ tục, hoặc gõ /trogiup để xem lệnh…">
+            <button class="send-btn" id="sendBtn">Gửi</button>
+        </div>
+    </div>
 
-    const PK=['name','title','label','ward_name','province_name','agency_name','category_name','group_name'];
-    const SK=['code','id','ward_code','province_code','agency_code','category_code'];
+    <!-- Backdrop mờ trên mobile khi mở panel -->
+    <div class="chat-backdrop" id="chatBackdrop" hidden></div>
 
-    function pickPri(o){for(const k of PK)if(o[k])return String(o[k]);const f=Object.values(o).find(v=>typeof v==='string');return f||'(Không có tên)'}
-    function pickSec(o){for(const k of SK)if(o[k]!==undefined)return String(o[k]);return ''}
-    function labelFor(k){
-        const m={'name':'Tên','title':'Tên thủ tục','code':'Mã','agency':'Cơ quan','agency_name':'Cơ quan','level':'Cấp','fee':'Lệ phí','processing_time':'Thời gian','has_submission':'Nộp online','province_name':'Tỉnh/thành','ward_name':'Phường/xã','description':'Mô tả'};
-        return m[k]||k;
-    }
+    <script>
+        (function () {
+            const settings = {
+                baseUrl: 'https://dichvucong.cloudgo.vn',
+                mode: 'gateway',
+                apiKey: '',
+                searchParam: 'q',
+                provinceParam: 'province_code',
+                categoryParam: 'category_code',
+                agencyParam: 'agency_code',
+                serviceGroupParam: 'service_group_code',
+                pageSize: 5,
+            };
 
-    function renderDetail(code){
-        addBot('Đang tải chi tiết…');
-        callApi('/api/services/detail',{code}).then(data=>{
-            $chat.lastChild?.remove();
-            const rows=[];
-            if(data.code)rows.push([labelFor('code'),data.code]);
-            if(data.issuing_agency)rows.push(['Cơ quan ban hành',data.issuing_agency]);
-            if(data.is_ward)rows.push(['Cấp thực hiện','Phường/xã']);
-            else if(data.is_province)rows.push(['Cấp thực hiện','Tỉnh/thành']);
-            else if(data.is_ministry)rows.push(['Cấp thực hiện','Bộ/ngành']);
-            if(Array.isArray(data.submission_methods)&&data.submission_methods.length)rows.push(['Hình thức nộp',data.submission_methods.join(', ')]);
-            if(data.processing_time!=null)rows.push(['Thời gian',data.processing_time+(data.processing_time_unit?' '+data.processing_time_unit.toLowerCase():'')]);
-            if(Array.isArray(data.fees)&&data.fees.length)rows.push(['Lệ phí',data.fees.map(v=>v.name||v).join('; ')]);
-            else if(data.fee)rows.push(['Lệ phí',data.fee.name||data.fee]);
-            if(Array.isArray(data.results)&&data.results.length)rows.push(['Kết quả',data.results.map(v=>v.name||v).join('; ')]);
-            if(data.requirements)rows.push(['Hồ sơ',data.requirements.name||data.requirements]);
-            if(data.has_submission!==undefined)rows.push(['Nộp online',data.has_submission?'Có':'Không']);
-            const box=document.createElement('div');
-            if(!rows.length){box.appendChild(txt('Không có thông tin chi tiết.'));addBot(box);return}
-            const el=document.createElement('div');el.className='cw-detail-rows';
-            rows.forEach(([k,v])=>{
-                const r=document.createElement('div');r.className='cw-row';
-                const a=document.createElement('div');a.className='cw-row-k';a.textContent=k;
-                const b=document.createElement('div');b.className='cw-row-v';b.textContent=v;
-                r.appendChild(a);r.appendChild(b);el.appendChild(r);
+            const chat = document.getElementById('chat');
+            const settingsPanel = document.getElementById('settingsPanel');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            document.getElementById('settingsToggle').addEventListener('click', () => settingsPanel.classList.toggle('open'));
+
+            document.getElementById('saveSettings').addEventListener('click', () => {
+                settings.baseUrl = document.getElementById('baseUrl').value.trim().replace(/\/$/, '');
+                settings.mode = document.getElementById('modeSelect').value;
+                settings.apiKey = document.getElementById('apiKey').value.trim();
+                settings.searchParam = document.getElementById('searchParam').value.trim() || 'q';
+                settings.provinceParam = document.getElementById('provinceParam').value.trim() || 'province_code';
+                settings.categoryParam = document.getElementById('categoryParam').value.trim() || 'category_code';
+                settings.agencyParam = document.getElementById('agencyParam').value.trim() || 'agency_code';
+                settings.serviceGroupParam = document.getElementById('serviceGroupParam').value.trim() || 'service_group_code';
+                settings.pageSize = parseInt(document.getElementById('pageSize').value, 10) || 5;
+                addBotText('Đã lưu cài đặt cho phiên làm việc này.');
+                settingsPanel.classList.remove('open');
             });
-            addBot(el);
-        }).catch(e=>{$chat.lastChild?.remove();addBotErr(e)});
-    }
 
-    function renderList(items,empty){
-        const box=document.createElement('div');
-        if(!items?.length){box.appendChild(txt(empty||'Không có dữ liệu.'));addBot(box);return}
-        box.appendChild(txt('Tìm thấy '+items.length+' kết quả:'));
-        const list=document.createElement('div');list.className='cw-card-list';
-        items.forEach(item=>{
-            const c=document.createElement('div');
-            c.className='cw-card'+(item.has_submission?' cw-has-online':'');
-            const body=document.createElement('div');body.className='cw-card-body';
-            const sec=pickSec(item);
-            if(sec){const co=document.createElement('div');co.className='cw-card-code';co.textContent='Mã: '+sec;body.appendChild(co)}
-            const na=document.createElement('div');na.className='cw-card-name';na.textContent=pickPri(item);body.appendChild(na);
-            if(item.has_submission){const t=document.createElement('div');t.className='cw-card-online';t.textContent='Hỗ trợ nộp online';body.appendChild(t)}
-            c.appendChild(body);
-            const btn=document.createElement('button');btn.className='cw-card-btn';btn.textContent='Xem chi tiết';
-            btn.addEventListener('click',()=>renderDetail(sec));
-            c.appendChild(btn);
-            list.appendChild(c);
-        });
-        box.appendChild(list);addBot(box);
-    }
+            document.getElementById('checkHealth').addEventListener('click', () => runHealthCheck());
 
-    function handleAction(text){
-        const t=text.trim().toLowerCase();
-        if(t.startsWith('/trogiup')){
-            addBot(txt('Các lệnh:\n/danhmuc – Danh mục lĩnh vực\n/tinhthanh – Danh sách tỉnh/thành\n/canquan – Cơ quan ban hành\n/nhom – Nhóm dịch vụ\n/timphuong – Tìm phường/xã\n/timtinh [tên] – Tìm tỉnh/thành'));
-            return;
-        }
-        if(t.startsWith('/danhmuc')){
-            addBot('Đang tải danh mục…');
-            callApi('/api/services/categories').then(d=>renderList(d.categories||d.items||[])).catch(e=>addBotErr(e));
-            return;
-        }
-        if(t.startsWith('/tinhthanh')){
-            addBot('Đang tải tỉnh/thành…');
-            callApi('/api/locations/provinces').then(d=>renderList(d.provinces||d.items||[])).catch(e=>{
-                callApi('/api/provinces').then(d2=>renderList(d2.provinces||d2.items||[])).catch(e2=>addBotErr(e2));
+            // ---------- WIDGET POPUP: mở/đóng panel chat ----------
+            const launcher = document.getElementById('chatLauncher');
+            const appPanel = document.getElementById('appPanel');
+            const chatClose = document.getElementById('chatClose');
+            const chatBackdrop = document.getElementById('chatBackdrop');
+            const launcherBadge = document.getElementById('chatLauncherBadge');
+
+            function openChat() {
+                appPanel.hidden = false;
+                launcher.classList.add('open');
+                launcherBadge.classList.add('hidden');
+                if (window.matchMedia('(max-width: 520px)').matches) {
+                    chatBackdrop.hidden = false;
+                }
+                // Focus vào input nếu có
+                const input = document.getElementById('userInput');
+                if (input) setTimeout(() => input.focus(), 200);
+                // Scroll xuống cuối
+                const chatEl = document.getElementById('chat');
+                if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+            }
+
+            function closeChat() {
+                appPanel.hidden = true;
+                launcher.classList.remove('open');
+                chatBackdrop.hidden = true;
+                settingsPanel.classList.remove('open'); // đóng cài đặt nếu đang mở
+            }
+
+            launcher.addEventListener('click', () => {
+                if (appPanel.hidden) openChat(); else closeChat();
             });
-            return;
-        }
-        if(t.startsWith('/canquan')){
-            addBot('Đang tải cơ quan…');
-            callApi('/api/agencies').then(d=>renderList(d.agencies||d.items||[])).catch(e=>addBotErr(e));
-            return;
-        }
-        if(t.startsWith('/nhom')){
-            addBot('Đang tải nhóm dịch vụ…');
-            callApi('/api/service-groups').then(d=>renderList(d.groups||d.items||[])).catch(e=>addBotErr(e));
-            return;
-        }
-        if(t.startsWith('/timphuong')){
-            addBot('Đang tìm phường/xã tại Phú Thọ…');
-            const p={[S.provinceParam]:'92'};
-            callApi('/api/locations/wards',p).then(d=>renderList(d.wards||d.items||[])).catch(e=>{
-                callApi('/api/wards',p).then(d2=>renderList(d2.wards||d2.items||[])).catch(e2=>addBotErr(e2));
+            chatClose.addEventListener('click', closeChat);
+            chatBackdrop.addEventListener('click', closeChat);
+
+            // ESC để đóng
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !appPanel.hidden) closeChat();
             });
-            return;
-        }
-        if(t.startsWith('/timtinh')){
-            const name=text.replace(/\/timtinh\s*/i,'').trim();
-            addBot('Đang tìm tỉnh "'+(name||'Phú Thọ')+'"…');
-            const p={};p[S.searchParam]=name||'Phú Thọ';
-            callApi('/api/locations/provinces',p).then(d=>renderList(d.provinces||d.items||[])).catch(e=>addBotErr(e));
-            return;
-        }
-        addBot('Đang tìm: "'+text+'"…');
-        const params={[S.searchParam]:text};
-        callApi('/api/services',params).then(d=>{
-            $chat.lastChild?.remove();
-            const items=d.items||d.data?.items||[];
-            renderList(items,'Không tìm thấy thủ tục nào phù hợp.');
-        }).catch(e=>{$chat.lastChild?.remove();addBotErr(e)});
-    }
 
-    function doSend(){
-        const v=$input.value.trim();
-        if(!v)return;
-        addUser(v);
-        $input.value='';
-        $sendBtn.disabled=true;
-        handleAction(v);
-        setTimeout(()=>{$sendBtn.disabled=false},800);
-    }
+            // ---------- low-level helpers ----------
+            function pathFor(p) {
+                const prefix = settings.mode === 'rest' ? '/rest' : '';
+                return settings.baseUrl + prefix + p;
+            }
+            function headersFor() {
+                const h = {};
+                if (settings.mode === 'rest' && settings.apiKey) h['X-API-Key'] = settings.apiKey;
+                return h;
+            }
+            async function callApi(path, params) {
+                let url = pathFor(path);
+                if (params) {
+                    const clean = {};
+                    Object.keys(params).forEach(k => { if (params[k] !== undefined && params[k] !== null && params[k] !== '') clean[k] = params[k]; });
+                    const qs = new URLSearchParams(clean).toString();
+                    if (qs) url += '?' + qs;
+                }
+                let res;
+                try { res = await fetch(url, { headers: headersFor() }); }
+                catch (e) { throw new Error('network'); }
+                if (res.status === 401 || res.status === 403) throw new Error('unauthorized');
+                if (res.status === 404) throw new Error('notfound');
+                if (!res.ok) throw new Error('http_' + res.status);
+                const ct = res.headers.get('content-type') || '';
+                return ct.includes('application/json') ? res.json() : res;
+            }
+            function errorMessage(err) {
+                switch (err.message) {
+                    case 'network':
+                        return 'Không gọi được máy chủ. Có thể do trình duyệt chặn CORS (nếu trang này không cùng domain với dichvucong.cloudgo.vn), hoặc Base URL sai.';
+                    case 'unauthorized':
+                        return settings.mode === 'rest'
+                            ? 'Thiếu hoặc sai X-API-Key. Vào Cài đặt để nhập đúng khóa, hoặc chuyển sang chế độ "Cổng chung".'
+                            : 'Yêu cầu bị từ chối do thiếu xác thực. Thử kiểm tra lại Base URL trong Cài đặt.';
+                    case 'notfound': return 'Không tìm thấy dữ liệu — kiểm tra lại mã hoặc từ khóa.';
+                    default: return 'Có lỗi khi gọi API (' + err.message + '). Vui lòng thử lại.';
+                }
+            }
 
-    function openPanel(){
-        $panel.hidden=false;
-        $launcher.classList.add('cw-open');
-        $badge.classList.add('cw-hide');
-        if(window.matchMedia('(max-width:520px)').matches)$backdrop.hidden=false;
-        setTimeout(()=>$input.focus(),200);
-        $chat.scrollTop=$chat.scrollHeight;
-    }
-    function closePanel(){
-        $panel.hidden=true;
-        $launcher.classList.remove('cw-open');
-        $backdrop.hidden=true;
-    }
+            // ---------- message rendering ----------
+            function addMessage(role, node) {
+                const wrap = document.createElement('div');
+                wrap.className = 'msg ' + role;
+                if (role === 'bot') {
+                    const av = document.createElement('div');
+                    av.className = 'avatar'; av.textContent = 'TT';
+                    wrap.appendChild(av);
+                }
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.appendChild(node);
+                wrap.appendChild(bubble);
+                chat.appendChild(wrap);
+                chat.scrollTop = chat.scrollHeight;
+                return bubble;
+            }
+            function textNode(t) { const d = document.createElement('div'); d.textContent = t; return d; }
+            function addBotText(t) { return addMessage('bot', textNode(t)); }
+            function addUserText(t) { addMessage('user', textNode(t)); }
+            function addBotError(err) { addMessage('bot', textNode(errorMessage(err))).classList.add('error-bubble'); }
 
-    function init(){
-        injectHTML(HTML);
-        $chat=dom('cw-chat');
-        $input=dom('cw-input');
-        $sendBtn=dom('cw-send');
-        $launcher=dom('cw-launcher');
-        $panel=dom('cw-panel');
-        $closeBtn=dom('cw-close');
-        $badge=dom('cw-badge');
-        $backdrop=dom('cw-backdrop');
+            // ---------- generic field picking (schema-agnostic) ----------
+            const PRIMARY_KEYS = ['name', 'title', 'label', 'ward_name', 'province_name', 'agency_name', 'category_name', 'group_name'];
+            const SECONDARY_KEYS = ['code', 'id', 'ward_code', 'province_code', 'agency_code', 'category_code'];
+            const LABELS = {
+                name: 'Tên', title: 'Tên thủ tục', code: 'Mã', agency: 'Cơ quan thực hiện',
+                agency_name: 'Cơ quan', level: 'Cấp thực hiện', fee: 'Lệ phí',
+                processing_time: 'Thời gian xử lý', requirements: 'Thành phần hồ sơ',
+                result: 'Kết quả thực hiện', has_submission: 'Có thể nộp online',
+                submission_links: 'Link nộp online', count: 'Số lượng', total: 'Tổng số',
+                address: 'Địa chỉ', phone: 'Điện thoại', email: 'Email',
+                province_name: 'Tỉnh/thành', ward_name: 'Phường/xã', description: 'Mô tả',
+            };
+            function labelFor(k) { return LABELS[k] || k; }
+            function pickPrimary(item) {
+                for (const k of PRIMARY_KEYS) if (item[k]) return String(item[k]);
+                const firstStr = Object.values(item).find(v => typeof v === 'string');
+                return firstStr || '(Không có tên)';
+            }
+            function pickSecondary(item) {
+                for (const k of SECONDARY_KEYS) if (item[k] !== undefined) return String(item[k]);
+                return '';
+            }
+            function pickMetaFields(item, excludeKeys) {
+                const out = [];
+                Object.keys(item).forEach(k => {
+                    if (excludeKeys.has(k)) return;
+                    const v = item[k];
+                    if (v == null || v === '') return;
+                    if (typeof v === 'object') return;
+                    out.push([k, v]);
+                });
+                return out.slice(0, 3);
+            }
 
-        $launcher.addEventListener('click',()=>{$panel.hidden?openPanel():closePanel()});
-        $closeBtn.addEventListener('click',closePanel);
-        $backdrop.addEventListener('click',closePanel);
-        $sendBtn.addEventListener('click',doSend);
-        $input.addEventListener('keydown',e=>{if(e.key==='Enter')doSend()});
-        document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$panel.hidden)closePanel()});
+            // ---------- generic reference-list rendering ----------
+            function renderReferenceList(items, opts) {
+                // opts: { emptyText, filterParam, onPick(codeOrId, label) }
+                const box = document.createElement('div');
+                if (!items.length) {
+                    box.appendChild(textNode(opts.emptyText || 'Không có dữ liệu.'));
+                    addMessage('bot', box);
+                    return;
+                }
+                const intro = textNode('Tìm thấy ' + items.length + ' kết quả:');
+                box.appendChild(intro);
+                const list = document.createElement('div');
+                list.className = 'card-list';
+                items.forEach(item => {
+                    const primary = pickPrimary(item);
+                    const secondary = pickSecondary(item);
+                    const meta = pickMetaFields(item, new Set([...PRIMARY_KEYS, ...SECONDARY_KEYS]));
 
-        document.querySelectorAll('.cw-chip').forEach(chip=>{
-            chip.addEventListener('click',()=>{
-                openPanel();
-                const action=chip.dataset.action;
-                if(action==='sample-search')handleAction('đăng ký kết hôn');
-                else if(action==='xuanlang')handleAction('thủ tục Phú Thọ');
-                else if(action==='categories')handleAction('/danhmuc');
-                else if(action==='myward')handleAction('thông tin xã Xuân Lãng Phú Thọ');
+                    const card = document.createElement('div');
+                    card.className = 'proc-card';
+                    const body = document.createElement('div');
+                    body.className = 'body';
+                    if (secondary) { const c = document.createElement('div'); c.className = 'code'; c.textContent = 'Mã: ' + secondary; body.appendChild(c); }
+                    const n = document.createElement('div'); n.className = 'name'; n.textContent = primary; body.appendChild(n);
+                    if (meta.length) {
+                        const m = document.createElement('div'); m.className = 'meta-line';
+                        m.textContent = meta.map(([k, v]) => labelFor(k) + ': ' + v).join(' · ');
+                        body.appendChild(m);
+                    }
+                    card.appendChild(body);
+
+                    if (opts.onPick) {
+                        const actions = document.createElement('div');
+                        actions.className = 'actions';
+                        const btn = document.createElement('button');
+                        btn.textContent = opts.pickLabel || 'Xem thủ tục liên quan';
+                        btn.addEventListener('click', () => opts.onPick(secondary, primary));
+                        actions.appendChild(btn);
+                        card.appendChild(actions);
+                    }
+                    list.appendChild(card);
+                });
+                box.appendChild(list);
+                addMessage('bot', box);
+            }
+
+            function renderSearchResults(data, page, contextLabel) {
+                const box = document.createElement('div');
+                box.appendChild(textNode('Tìm thấy ' + (data.total ?? (data.items || []).length) + ' thủ tục ' + contextLabel + ':'));
+                const list = document.createElement('div');
+                list.className = 'card-list';
+                (data.items || []).forEach(item => {
+                    const hasOnline = !!item.has_submission;
+                    const card = document.createElement('div');
+                    card.className = 'proc-card' + (hasOnline ? ' has-online' : '');
+                    const body = document.createElement('div');
+                    body.className = 'body';
+                    const code = document.createElement('div'); code.className = 'code'; code.textContent = 'Mã: ' + (item.code || item.id || '—');
+                    const name = document.createElement('div'); name.className = 'name'; name.textContent = item.name || item.title || '(Không có tên)';
+                    body.appendChild(code); body.appendChild(name);
+                    if (hasOnline) { const tag = document.createElement('div'); tag.className = 'online-tag'; tag.textContent = 'Hỗ trợ nộp online'; body.appendChild(tag); }
+                    card.appendChild(body);
+                    const btn = document.createElement('button');
+                    btn.textContent = 'Xem chi tiết';
+                    btn.addEventListener('click', () => handleDetail(item.code || item.id));
+                    card.appendChild(btn);
+                    list.appendChild(card);
+                });
+                box.appendChild(list);
+
+                if (data.total && data.size) {
+                    const totalPages = Math.ceil(data.total / data.size);
+                    if (totalPages > 1) {
+                        const pager = document.createElement('div'); pager.className = 'pager';
+                        const prev = document.createElement('button'); prev.textContent = '← Trang trước'; prev.disabled = page <= 1;
+                        prev.addEventListener('click', () => data._refetch(page - 1));
+                        const info = document.createElement('span'); info.textContent = 'Trang ' + page + ' / ' + totalPages;
+                        const next = document.createElement('button'); next.textContent = 'Trang sau →'; next.disabled = page >= totalPages;
+                        next.addEventListener('click', () => data._refetch(page + 1));
+                        pager.appendChild(prev); pager.appendChild(info); pager.appendChild(next);
+                        box.appendChild(pager);
+                    }
+                }
+                addMessage('bot', box);
+            }
+
+            const SUBMISSION_METHOD_LABELS = { DIRECT: 'Trực tiếp', ONLINE: 'Trực tuyến', POSTAL: 'Qua bưu điện' };
+            const PROCESSING_UNIT_LABELS = { DAY: 'ngày', WORKING_DAY: 'ngày làm việc', HOUR: 'giờ', OTHER: 'ngày' };
+
+            function summarizeValue(v) {
+                if (v == null) return '';
+                if (typeof v === 'object') {
+                    if (v.name) return v.name;
+                    if (v.title) return v.title;
+                    if (v.label) return v.label;
+                    if (v.id) return String(v.id);
+                    return JSON.stringify(v);
+                }
+                return String(v);
+            }
+
+            // Real API responses carry many internal/technical fields (procedure_id,
+            // formality_type, state, is_province/is_ministry/is_ward, etc.) that are
+            // not meaningful to an end user searching for a procedure. We surface a
+            // curated, human-readable subset here and keep the raw payload available
+            // in a collapsible section below for anyone who needs it.
+            function buildFriendlyRows(data) {
+                const rows = [];
+                if (data.code) rows.push(['Mã thủ tục', data.code]);
+                if (data.issuing_agency) rows.push(['Cơ quan ban hành', data.issuing_agency]);
+
+                let level = null;
+                if (data.is_ward) level = 'Phường/xã';
+                else if (data.is_province) level = 'Tỉnh/thành';
+                else if (data.is_ministry) level = 'Bộ/ngành';
+                if (level) rows.push(['Cấp thực hiện', level]);
+
+                if (Array.isArray(data.submission_methods) && data.submission_methods.length) {
+                    rows.push(['Hình thức nộp', data.submission_methods.map(m => SUBMISSION_METHOD_LABELS[m] || m).join(', ')]);
+                }
+
+                if (data.processing_time !== undefined && data.processing_time !== null && data.processing_time !== '') {
+                    const unit = PROCESSING_UNIT_LABELS[data.processing_time_unit] || '';
+                    rows.push(['Thời gian xử lý', String(data.processing_time) + (unit ? ' ' + unit : '')]);
+                }
+
+                if (Array.isArray(data.fees)) {
+                    rows.push(['Lệ phí', data.fees.length ? data.fees.map(summarizeValue).join('; ') : 'Miễn phí / chưa có thông tin lệ phí']);
+                } else if (data.fee) {
+                    rows.push(['Lệ phí', summarizeValue(data.fee)]);
+                }
+
+                if (Array.isArray(data.results) && data.results.length) {
+                    rows.push(['Kết quả thực hiện', data.results.map(summarizeValue).join('; ')]);
+                }
+
+                if (data.requirements) rows.push(['Thành phần hồ sơ', summarizeValue(data.requirements)]);
+                if (data.has_submission !== undefined) rows.push(['Có thể nộp online', data.has_submission ? 'Có' : 'Không']);
+
+                return rows;
+            }
+
+            // Helper: chuẩn hoá danh sách đối tượng/cơ quan/... về dạng chuỗi đẹp
+            function namesOnly(arr) {
+                if (!Array.isArray(arr)) return [];
+                return arr
+                    .map(x => (typeof x === 'object' && x !== null) ? (x.name || x.title) : x)
+                    .filter(Boolean);
+            }
+
+            // Render danh sách dạng bullet (•) cho các section dài
+            function bulletList(items) {
+                const ul = document.createElement('ul');
+                ul.style.margin = '4px 0 0'; ul.style.paddingLeft = '18px';
+                items.forEach(t => {
+                    const li = document.createElement('li');
+                    li.style.fontSize = '13px'; li.style.lineHeight = '1.5';
+                    li.style.marginBottom = '2px';
+                    li.textContent = t;
+                    ul.appendChild(li);
+                });
+                return ul;
+            }
+
+            // Render 1 nhóm giấy tờ (gộp theo case_name để có tiêu đề "Giấy tờ phải xuất trình")
+            // Header gọn cho detail (các dòng key-value ngắn)
+            function detailRow(label, valueNode) {
+                    const row = document.createElement('div'); row.className = 'detail-row';
+                    const k = document.createElement('div'); k.className = 'k'; k.textContent = label;
+                const v = document.createElement('div'); v.className = 'v';
+                if (valueNode) {
+                    if (typeof valueNode === 'string') v.textContent = valueNode;
+                    else v.appendChild(valueNode);
+                }
+                row.appendChild(k); row.appendChild(v);
+                return row;
+            }
+
+            // ============ RENDER CHI TIẾT THỦ TỤC (theo bản tóm tắt chuẩn) ============
+            // Cấu trúc: 1. Cơ quan thực hiện | 2. Hồ sơ cần chuẩn bị | 3. Trình tự & Cách thức | 4. Thời hạn & Lệ phí | 5. Căn cứ pháp lý
+
+            // Gộp components theo nhóm, mỗi nhóm 1 đoạn tóm tắt (KHÔNG dump từng dòng)
+            // Bỏ qua các nhóm "Lưu ý" / "Lưu ý :" vì nội dung quá dài, thay bằng câu support ở cuối.
+            function summarizeComponents(data) {
+                const comps = data.components || [];
+                if (!comps.length) return [];
+
+                // Gom theo case_name (hoặc key mặc định)
+                const groups = {};
+                comps.forEach(c => {
+                    const key = (c.case_name || '').trim() || '__default__';
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(c);
+                });
+
+                const result = [];
+                // Xử lý nhóm mặc định trước (không có case_name)
+                const defaultGroup = groups['__default__'] || [];
+                delete groups['__default__'];
+
+                // Xử lý nhóm có case_name - BỎ QUA các nhóm kiểu "Lưu ý"
+                const sortedKeys = Object.keys(groups).sort((a, b) => {
+                    const ca = groups[a][0] || {};
+                    const cb = groups[b][0] || {};
+                    return (ca.seq || 0) - (cb.seq || 0);
+                });
+                sortedKeys.forEach(key => {
+                    // Bỏ qua nhóm Lưu ý (sẽ thay bằng câu support ngắn ở cuối)
+                    if (/lưu\s*ý/i.test(key)) return;
+
+                    const items = groups[key];
+                    // Tạo tiêu đề nhóm
+                    let label = key.replace(/^\* /, '').trim();
+                    // Viết hoa chữ cái đầu
+                    label = label.charAt(0).toUpperCase() + label.slice(1);
+                    // Gom tất cả name trong nhóm thành 1 đoạn
+                    const names = items.map(c => {
+                        let n = (c.name || '').trim().replace(/^-\s*/, '').trim();
+                        return n;
+                    }).filter(n => n && n.length > 5);
+                    const text = names.join('; ');
+                    if (label || text) {
+                        result.push({ label, text });
+                    }
+                });
+
+                // Xử lý nhóm mặc định
+                if (defaultGroup.length) {
+                    const names = defaultGroup.map(c => {
+                        let n = (c.name || '').trim().replace(/^-\s*/, '').trim();
+                        return n;
+                    }).filter(n => n && n.length > 5);
+                    if (names.length) {
+                        result.push({ label: 'Hồ sơ', text: names.join('; ') });
+                    }
+                }
+                return result;
+            }
+
+            // Gộp steps thành 3-5 ý rút gọn
+            function summarizeSteps(data) {
+                const steps = data.steps || [];
+                if (!steps.length) return [];
+                // Lấy step đầu tiên, tách thành các bullet theo dấu "-" hoặc "\n"
+                const step = steps[0];
+                const raw = (step.description || '').trim();
+                // Tách theo "\n-" hoặc "\n\n"
+                const bullets = raw.split(/\n\s*(?=-|\+)/).map(s => s.trim()).filter(s => s && s.length > 20);
+                // Lấy tối đa 5 bullet, mỗi bullet lấy 120 ký tự đầu
+                return bullets.slice(0, 5).map(b => {
+                    // Bỏ dấu "-" hoặc "+" đầu dòng
+                    let cleaned = b.replace(/^[-\+\*]\s*/, '').trim();
+                    // Cắt ở 130 ký tự
+                    if (cleaned.length > 130) cleaned = cleaned.substring(0, 130) + '...';
+                    return cleaned;
+                });
+            }
+
+            // Gộp legal_basis theo loại văn bản (Luật / Nghị định / Thông tư / Nghị quyết)
+            function summarizeLegalBasis(data) {
+                const lbs = data.legal_basis || [];
+                if (!lbs.length) return {};
+                const groups = { 'Luật': [], 'Nghị định': [], 'Thông tư': [], 'Nghị quyết': [], 'Khác': [] };
+                lbs.forEach(l => {
+                    const code = l.code || '';
+                    const name = l.name || '';
+                    // Phân loại theo code
+                    let type = 'Khác';
+                    if (/^Luật\s/i.test(code) || /^Luật\s/i.test(name)) type = 'Luật';
+                    else if (/^Nghị\s*quyết/i.test(code) || /NQ[-/]/i.test(code)) type = 'Nghị quyết';
+                    else if (/^Nghị\s*định/i.test(code) || /NĐ[-/]CP/i.test(code)) type = 'Nghị định';
+                    else if (/^Thông\s*tư/i.test(code) || /TT[-/]/i.test(code)) type = 'Thông tư';
+                    // Format: "Mã số - Tên đầy đủ"
+                    const display = name || code;
+                    groups[type].push(display);
+                });
+                // Xóa nhóm rỗng
+                Object.keys(groups).forEach(k => { if (!groups[k].length) delete groups[k]; });
+                return groups;
+            }
+
+            // Tạo 1 mục có tiêu đề + danh sách bullet
+            function detailSection(label, items) {
+                if (!items || (Array.isArray(items) && !items.length)) return null;
+                const wrap = document.createElement('div');
+                wrap.style.marginBottom = '10px';
+                const title = document.createElement('div');
+                title.style.fontWeight = '700'; title.style.fontSize = '13px';
+                title.style.color = 'var(--navy)'; title.style.marginBottom = '4px';
+                title.textContent = label;
+                wrap.appendChild(title);
+                const list = document.createElement('ul');
+                list.style.paddingLeft = '20px'; list.style.margin = '2px 0 0';
+                const arr = Array.isArray(items) ? items : [items];
+                arr.forEach(item => {
+                    const li = document.createElement('li');
+                    li.style.fontSize = '13px'; li.style.lineHeight = '1.5';
+                    li.style.marginBottom = '2px';
+                    li.textContent = typeof item === 'object' ? (item.label ? item.label + ': ' + item.text : item.text) : item;
+                    list.appendChild(li);
+                });
+                wrap.appendChild(list);
+                return wrap;
+            }
+
+            // Tạo 1 mục có tiêu đề + văn bản ngắn (không phải list)
+            function detailParagraph(label, text) {
+                if (!text) return null;
+                const wrap = document.createElement('div');
+                wrap.style.marginBottom = '10px';
+                const title = document.createElement('div');
+                title.style.fontWeight = '700'; title.style.fontSize = '13px';
+                title.style.color = 'var(--navy)'; title.style.marginBottom = '4px';
+                title.textContent = label;
+                const body = document.createElement('div');
+                body.style.fontSize = '13px'; body.style.lineHeight = '1.5';
+                body.style.whiteSpace = 'pre-wrap';
+                body.textContent = text;
+                wrap.appendChild(title); wrap.appendChild(body);
+                return wrap;
+            }
+
+            function renderDetail(data, code) {
+                const box = document.createElement('div');
+
+                // ===== TIÊU ĐỀ theo format widget CloudGO =====
+                // Ví dụ: "Thủ tục Đăng ký, cấp Chứng nhận đăng ký xe, biển số xe (Mã thủ tục: 1.115970) được quy định cụ thể như sau:"
+                const procName = data.name || data.title || ('Thủ tục ' + code);
+                const procCode = data.code || code;
+                const header = document.createElement('div');
+                header.style.fontWeight = '700'; header.style.fontSize = '14px';
+                header.style.lineHeight = '1.5'; header.style.marginBottom = '12px';
+                header.style.color = 'var(--ink)';
+                header.textContent = 'Thủ tục ' + procName + ' (Mã thủ tục: ' + procCode + ') được quy định cụ thể như sau:';
+                box.appendChild(header);
+
+                // ===== 1. Cơ quan tiếp nhận & giải quyết =====
+                const agencies = namesOnly(data.departments_authority);
+                const issuing = data.issuing_agency || '';
+                const agenciesList = agencies.length ? agencies : (issuing ? [issuing] : []);
+                const sec1 = document.createElement('div');
+                sec1.style.marginBottom = '10px';
+                const title1 = document.createElement('div');
+                title1.style.fontWeight = '700'; title1.style.fontSize = '13px';
+                title1.style.color = 'var(--navy)'; title1.style.marginBottom = '4px';
+                title1.textContent = '1. Cơ quan tiếp nhận & giải quyết';
+                sec1.appendChild(title1);
+                if (agenciesList.length) {
+                    const ul1 = document.createElement('ul');
+                    ul1.style.paddingLeft = '20px'; ul1.style.margin = '2px 0 0';
+                    agenciesList.forEach(ag => {
+                        const li = document.createElement('li');
+                        li.style.fontSize = '13px'; li.style.lineHeight = '1.5';
+                        li.style.marginBottom = '2px';
+                        li.textContent = ag + '.';
+                        ul1.appendChild(li);
+                    });
+                    sec1.appendChild(ul1);
+                }
+                box.appendChild(sec1);
+
+                // ===== 2. Hồ sơ cần chuẩn bị =====
+                const compGroups = summarizeComponents(data);
+                if (compGroups.length) {
+                    const sec = document.createElement('div');
+                    sec.style.marginBottom = '10px';
+                    const title2 = document.createElement('div');
+                    title2.style.fontWeight = '700'; title2.style.fontSize = '13px';
+                    title2.style.color = 'var(--navy)'; title2.style.marginBottom = '4px';
+                    title2.textContent = '2. Hồ sơ cần chuẩn bị';
+                    sec.appendChild(title2);
+
+                    const list = document.createElement('ul');
+                    list.style.paddingLeft = '20px'; list.style.margin = '2px 0 0';
+                    compGroups.forEach(g => {
+                        const li = document.createElement('li');
+                        li.style.fontSize = '13px'; li.style.lineHeight = '1.5';
+                        li.style.marginBottom = '4px';
+                        if (g.label && g.label !== 'Hồ sơ') {
+                            const labelSpan = document.createElement('strong');
+                            labelSpan.textContent = g.label + ': ';
+                            li.appendChild(labelSpan);
+                            li.appendChild(document.createTextNode(g.text));
+                        } else {
+                            li.textContent = g.text;
+                        }
+                        list.appendChild(li);
+                    });
+                    sec.appendChild(list);
+                    box.appendChild(sec);
+                }
+
+                // ===== 3. Trình tự và Cách thức thực hiện =====
+                const submissionLabels = (data.submission_methods || []).map(m => SUBMISSION_METHOD_LABELS[m] || m);
+                const methodText = submissionLabels.join(', ');
+                const stepBullets = summarizeSteps(data);
+
+                if (methodText || stepBullets.length) {
+                    const sec = document.createElement('div');
+                    sec.style.marginBottom = '10px';
+                    const title3 = document.createElement('div');
+                    title3.style.fontWeight = '700'; title3.style.fontSize = '13px';
+                    title3.style.color = 'var(--navy)'; title3.style.marginBottom = '4px';
+                    title3.textContent = '3. Trình tự và Cách thức thực hiện';
+                    sec.appendChild(title3);
+
+                    const list = document.createElement('ul');
+                    list.style.paddingLeft = '20px'; list.style.margin = '2px 0 0';
+
+                    if (methodText) {
+                        const li1 = document.createElement('li');
+                        li1.style.fontSize = '13px'; li1.style.lineHeight = '1.5';
+                        li1.style.marginBottom = '3px';
+                        const strong = document.createElement('strong');
+                        strong.textContent = 'Cách thức nộp: ';
+                        li1.appendChild(strong);
+                        li1.appendChild(document.createTextNode(methodText + '.'));
+                        list.appendChild(li1);
+                    }
+                    if (stepBullets.length) {
+                        const li2 = document.createElement('li');
+                        li2.style.fontSize = '13px'; li2.style.lineHeight = '1.5';
+                        li2.style.marginBottom = '3px';
+                        const strong = document.createElement('strong');
+                        strong.textContent = 'Quy trình giải quyết: ';
+                        li2.appendChild(strong);
+                        const subList = document.createElement('ul');
+                        subList.style.paddingLeft = '20px'; subList.style.margin = '2px 0 0';
+                        stepBullets.forEach(b => {
+                            const subLi = document.createElement('li');
+                            subLi.style.fontSize = '13px'; subLi.style.lineHeight = '1.5';
+                            subLi.style.marginBottom = '2px';
+                            subLi.textContent = b;
+                            subList.appendChild(subLi);
+                        });
+                        li2.appendChild(subList);
+                        list.appendChild(li2);
+                    }
+                    sec.appendChild(list);
+                    box.appendChild(sec);
+                }
+
+                // ===== 4. Thời hạn giải quyết & Lệ phí =====
+                {
+                    const sec = document.createElement('div');
+                    sec.style.marginBottom = '10px';
+                    const title4 = document.createElement('div');
+                    title4.style.fontWeight = '700'; title4.style.fontSize = '13px';
+                    title4.style.color = 'var(--navy)'; title4.style.marginBottom = '4px';
+                    title4.textContent = '4. Thời hạn giải quyết & Lệ phí';
+                    sec.appendChild(title4);
+
+                    const list = document.createElement('ul');
+                    list.style.paddingLeft = '20px'; list.style.margin = '2px 0 0';
+
+                    // Thời hạn
+                    const timeVal = data.processing_time;
+                    const timeUnit = PROCESSING_UNIT_LABELS[data.processing_time_unit] || 'ngày làm việc';
+                    const liTime = document.createElement('li');
+                    liTime.style.fontSize = '13px'; liTime.style.lineHeight = '1.5';
+                    const strongTime = document.createElement('strong');
+                    strongTime.textContent = 'Thời hạn giải quyết: ';
+                    liTime.appendChild(strongTime);
+                    liTime.appendChild(document.createTextNode(timeVal ? (timeVal + ' ' + timeUnit + (timeVal === 1 ? ' (ngay trong ngày tiếp nhận đủ hồ sơ hợp lệ)' : '') + '.') : 'Chưa có thông tin.'));
+                    list.appendChild(liTime);
+
+                    // Lệ phí (ưu tiên execution_methods)
+                    const execMethods = Array.isArray(data.execution_methods) ? data.execution_methods : [];
+                    const feeDescs = execMethods.map(em => {
+                        const f = (em.fees || [])[0];
+                        return f ? (f.description || '').trim() : '';
+                    }).filter(Boolean);
+                    const allFree = feeDescs.length && feeDescs.every(d => /miễn|0|không/i.test(d));
+                    const liFee = document.createElement('li');
+                    liFee.style.fontSize = '13px'; liFee.style.lineHeight = '1.5';
+                    const strongFee = document.createElement('strong');
+                    strongFee.textContent = 'Lệ phí: ';
+                    liFee.appendChild(strongFee);
+                    liFee.appendChild(document.createTextNode(allFree ? 'Miễn lệ phí' : (feeDescs[0] || 'Chưa có thông tin')));
+                    list.appendChild(liFee);
+
+                    // Kết quả
+                    const results = namesOnly(data.results);
+                    if (results.length) {
+                        const liRes = document.createElement('li');
+                        liRes.style.fontSize = '13px'; liRes.style.lineHeight = '1.5';
+                        const strongRes = document.createElement('strong');
+                        strongRes.textContent = 'Kết quả nhận được: ';
+                        liRes.appendChild(strongRes);
+                        liRes.appendChild(document.createTextNode(results.join('; ') + '.'));
+                        list.appendChild(liRes);
+                    }
+
+                    sec.appendChild(list);
+                    box.appendChild(sec);
+                }
+
+                // ===== 5. Căn cứ pháp lý =====
+                const legalGroups = summarizeLegalBasis(data);
+                const groupKeys = Object.keys(legalGroups);
+                if (groupKeys.length) {
+                    const sec = document.createElement('div');
+                    sec.style.marginBottom = '10px';
+                    const title5 = document.createElement('div');
+                    title5.style.fontWeight = '700'; title5.style.fontSize = '13px';
+                    title5.style.color = 'var(--navy)'; title5.style.marginBottom = '4px';
+                    title5.textContent = 'Căn cứ pháp lý:';
+                    sec.appendChild(title5);
+
+                    const list = document.createElement('ul');
+                    list.style.paddingLeft = '20px'; list.style.margin = '2px 0 0';
+                    groupKeys.forEach(type => {
+                        const items = legalGroups[type];
+                        if (!items.length) return;
+                        const li = document.createElement('li');
+                        li.style.fontSize = '13px'; li.style.lineHeight = '1.5';
+                        li.style.marginBottom = '2px';
+                        const strong = document.createElement('strong');
+                        strong.textContent = type + ' ';
+                        li.appendChild(strong);
+                        li.appendChild(document.createTextNode(items.join('; ') + '.'));
+                        list.appendChild(li);
+                    });
+                    sec.appendChild(list);
+                    box.appendChild(sec);
+                }
+
+                // ===== ACTION BUTTONS =====
+                const actions = document.createElement('div'); actions.className = 'detail-actions';
+                if (data.portal_url) {
+                    const a = document.createElement('a');
+                    a.href = data.portal_url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+                    a.style.background = 'var(--green)'; a.style.color = '#fff';
+                    a.style.borderColor = 'var(--green)'; a.style.fontWeight = '600';
+                    a.textContent = '🔗 Nộp online trên Cổng DVC Quốc gia';
+                    actions.appendChild(a);
+                } else if (data.submission_links) {
+                    const links = Array.isArray(data.submission_links) ? data.submission_links : [data.submission_links];
+                    links.forEach((link, i) => {
+                        const a = document.createElement('a');
+                        a.href = typeof link === 'string' ? link : (link.url || '#');
+                        a.target = '_blank'; a.rel = 'noopener noreferrer';
+                        a.textContent = links.length > 1 ? ('Link nộp online ' + (i + 1)) : 'Nộp thủ tục online';
+                        actions.appendChild(a);
+                    });
+                }
+                const provBtn = document.createElement('button');
+                provBtn.textContent = 'Xem tỉnh áp dụng';
+                provBtn.addEventListener('click', () => handleProcedureSub(code, 'provinces'));
+                actions.appendChild(provBtn);
+                const wardBtn = document.createElement('button');
+                wardBtn.textContent = 'Xem phường/xã áp dụng';
+                wardBtn.addEventListener('click', () => handleProcedureSub(code, 'wards'));
+                actions.appendChild(wardBtn);
+                if (Array.isArray(data.attachments)) {
+                    data.attachments.forEach(att => {
+                        const btn = document.createElement('button');
+                        btn.textContent = 'Tải biểu mẫu: ' + (att.name || att.id);
+                        btn.addEventListener('click', () => downloadAttachment(att.id, att.name));
+                        actions.appendChild(btn);
+                    });
+                }
+                box.appendChild(actions);
+
+                // Câu hỗ trợ cuối cùng (ngắn gọn, thay cho "Lưu ý" dài)
+                const supportLine = document.createElement('div');
+                supportLine.style.marginTop = '10px'; supportLine.style.padding = '8px 12px';
+                supportLine.style.background = '#FFF8E1';
+                supportLine.style.border = '1px solid #FFE082';
+                supportLine.style.borderLeft = '3px solid #F59E0B';
+                supportLine.style.borderRadius = '6px';
+                supportLine.style.fontSize = '13px'; supportLine.style.color = '#5B4500';
+                supportLine.style.lineHeight = '1.5';
+                supportLine.textContent = 'Nếu bạn có thắc mắc và cần hỗ trợ thì hãy đến UBND xã Xuân Lãng để được hỗ trợ và giải đáp nhé!';
+                box.appendChild(supportLine);
+
+                addMessage('bot', box);
+            }
+
+            function renderRaw(data, label) {
+                const box = document.createElement('div');
+                box.appendChild(textNode(label));
+                const pre = document.createElement('pre');
+                pre.style.whiteSpace = 'pre-wrap'; pre.style.fontSize = '12px'; pre.style.margin = '4px 0 0'; pre.style.color = 'var(--muted)';
+                pre.textContent = JSON.stringify(data, null, 2);
+                box.appendChild(pre);
+                addMessage('bot', box);
+            }
+
+            // ---------- action handlers ----------
+            async function runHealthCheck() {
+                addBotText('Đang kiểm tra kết nối tới ' + settings.baseUrl + '...');
+                try {
+                    const data = await callApi('/api/health');
+                    statusDot.className = 'dot ok'; statusText.textContent = 'Đã kết nối';
+                    addBotText('Kết nối ổn định. Phản hồi: ' + (typeof data === 'object' ? JSON.stringify(data) : 'OK') + '.');
+                } catch (err) {
+                    statusDot.className = 'dot bad'; statusText.textContent = 'Lỗi kết nối';
+                    addBotError(err);
+                }
+            }
+
+            // Tách câu truy vấn tự nhiên của người dùng thành:
+            //   - { wardQuery, provinceQuery }: các cụm từ có thể là tên xã/phường hoặc tỉnh
+            //   - { keyword }: phần còn lại, dùng để search thủ tục
+            // Heuristic: bắt các cụm sau các từ điển hình "xã/phường/thị trấn/tỉnh/thành phố/quận/huyện",
+            // hoặc các cụm có dạng "tại X", "ở X", "của X". Cụm được giữ lại nguyên văn để gọi /api/wards?q=.
+            function extractLocationAndKeyword(text) {
+                const locMarkers = [
+                    /(?:xã|phường|thị\s*trấn|quận|huyện|thị\s*xã)\s+([A-ZÀ-Ỹ][A-Za-zÀ-ỹĐđ\s]+?)(?=,|\s+tại\s|\s+ở\s|\s+của\s|\s+là\s|$)/gi,
+                    /(?:tỉnh|thành\s*phố|tp\.?)\s+([A-ZÀ-Ỹ][A-Za-zÀ-ỹĐđ\s]+?)(?=,|\s+tại\s|\s+ở\s|\s+của\s|$)/gi,
+                ];
+                const locParts = [];
+                let workText = text;
+                for (const re of locMarkers) {
+                    workText = workText.replace(re, (m, name) => {
+                        const clean = name.trim();
+                        if (clean.length >= 2) locParts.push(clean);
+                        return ' ';
+                    });
+                }
+                // Bỏ thêm các cụm "tại/ở/của + tên riêng viết hoa" còn sót (ví dụ "tại Xuân Lãng")
+                workText = workText.replace(/\b(?:tại|ở|của)\s+([A-ZÀ-Ỹ][A-Za-zÀ-ỹĐđ]+(?:\s+[A-ZÀ-Ỹ][A-Za-zÀ-ỹĐđ]+)*)/g, (m, name) => {
+                    // Chỉ bóc nếu cụm đó CHƯA được match bởi locMarkers (tránh double-count)
+                    if (locParts.some(p => p.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(p.toLowerCase()))) return ' ';
+                    return ' ';
+                });
+                // Loại stop-words đầu câu + các từ nối còn sót (tại/ở/của/với/cho/là/thì/mà)
+                workText = workText.replace(/\b(thủ\s*tục|hồ\s*sơ|giấy\s*tờ|thông\s*tin|về|cách|làm\s*thế\s*nào|tại|ở|của|với|cho|là|thì|mà|như|nhé|ạ|giúp|em|anh|chị)\b/gi, ' ');
+                const keyword = workText.replace(/\s+/g, ' ').trim();
+                return { wardQuery: locParts, provinceQuery: [], keyword };
+            }
+
+            // Tìm ward/province khớp với cụm địa danh người dùng nhập.
+            // Trả về { wards: [...], provinces: [...] } hoặc { error } nếu lỗi mạng.
+            async function resolveLocations(parts) {
+                const result = { wards: [], provinces: [] };
+                await Promise.all(parts.map(async (name) => {
+                    try {
+                        const d = await callApi('/api/wards', { [settings.searchParam]: name, size: 5 });
+                        const items = (d.items || []).filter(it =>
+                            (it.ward_name || it.name || '').toLowerCase().includes(name.toLowerCase())
+                        );
+                        if (items.length) result.wards.push(...items);
+                    } catch (_) { }
+                    try {
+                        const d = await callApi('/api/provinces', { [settings.searchParam]: name, size: 5 });
+                        const items = (d.items || []).filter(it =>
+                            (it.name || it.province_name || '').toLowerCase().includes(name.toLowerCase())
+                        );
+                        if (items.length) result.provinces.push(...items);
+                    } catch (_) { }
+                }));
+                return result;
+            }
+
+            // Bỏ dấu + lower-case để so sánh tiếng Việt có/không dấu.
+            function stripVN(s) {
+                return s.toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/đ/g, 'd').replace(/Đ/g, 'd');
+            }
+
+            // Lấy danh sách procedures của 1 ward bằng cách duyệt phân trang
+            // (/api/wards/{code} mặc định size=20, xã Xuân Lãng có 3544 thủ tục).
+            async function fetchAllWardProcedures(wardCode, maxItems) {
+                maxItems = maxItems || 400; // an toàn: 1 xã có thể tới vài nghìn thủ tục, lấy tối đa ~400 để filter
+                const pageSize = 100;
+                let page = 1, total = Infinity, collected = [];
+                while (collected.length < maxItems && (collected.length < total)) {
+                    const d = await callApi('/api/wards/' + encodeURIComponent(wardCode), { page, size: pageSize });
+                    total = d.procedures?.total ?? (d.items?.length || 0);
+                    const items = d.procedures?.items || d.items || [];
+                    if (!items.length) break;
+                    collected = collected.concat(items);
+                    if (items.length < pageSize) break;
+                    page++;
+                }
+                return { total, items: collected.slice(0, maxItems) };
+            }
+
+            // Lọc danh sách procedures theo keyword (có/không dấu, match tên/mã).
+            function filterProceduresByKeyword(items, keyword) {
+                if (!keyword) return items;
+                const k = stripVN(keyword);
+                const tokens = k.split(/\s+/).filter(t => t.length >= 2);
+                if (!tokens.length) return items;
+                return items.filter(it => {
+                    const name = stripVN(it.name || it.title || '');
+                    const code = stripVN(it.code || it.case_code || '');
+                    // Mỗi token phải xuất hiện ở tên HOẶC mã
+                    return tokens.every(t => name.includes(t) || code.includes(t));
+                });
+            }
+
+            // Render kết quả procedures (kèm context ward nếu có)
+            function renderWardSearchResults(ward, items, keyword, totalWard) {
+                const box = document.createElement('div');
+                const intro = textNode(
+                    'Tại ' + (ward.name || ward.ward_name || ('xã ' + ward.code)) +
+                    ' (mã ' + ward.code + ', ' + (ward.province || '') + ')' +
+                    (keyword ? ' — lọc theo "' + keyword + '"' : '') +
+                    ': tìm thấy ' + items.length + ' / ' + totalWard + ' thủ tục.'
+                );
+                box.appendChild(intro);
+                if (!items.length) {
+                    box.appendChild(textNode('Không có thủ tục nào khớp. Thử bỏ bớt từ khóa hoặc dùng tên thủ tục khác.'));
+                    addMessage('bot', box);
+                    return;
+                }
+                const list = document.createElement('div'); list.className = 'card-list';
+                items.slice(0, 20).forEach(it => {
+                    const card = document.createElement('div'); card.className = 'proc-card has-online';
+                    const body = document.createElement('div'); body.className = 'body';
+                    const code = document.createElement('div'); code.className = 'code';
+                    code.textContent = 'Mã: ' + (it.code || it.case_code || '—');
+                    const name = document.createElement('div'); name.className = 'name';
+                    name.textContent = it.name || '(Không có tên)';
+                    body.appendChild(code); body.appendChild(name);
+                    if (it.category_name) {
+                        const meta = document.createElement('div'); meta.className = 'meta-line';
+                        meta.textContent = 'Lĩnh vực: ' + it.category_name + (it.level ? ' · Cấp: ' + it.level : '');
+                        body.appendChild(meta);
+                    }
+                    card.appendChild(body);
+                    const btn = document.createElement('button');
+                    btn.textContent = 'Xem chi tiết';
+                    btn.addEventListener('click', () => handleDetail(it.code));
+                    card.appendChild(btn);
+                    list.appendChild(card);
+                });
+                box.appendChild(list);
+                if (items.length > 20) {
+                    const more = textNode('(Đang hiển thị 20/' + items.length + ' kết quả khớp nhất. Thu hẹp từ khóa để thấy đúng thủ tục cần tìm.)');
+                    box.appendChild(more);
+                }
+                addMessage('bot', box);
+            }
+
+            async function handleSearch(keyword, page, extraParams, contextLabel) {
+                page = page || 1;
+                extraParams = extraParams || {};
+                contextLabel = contextLabel || (keyword ? 'khớp với "' + keyword + '"' : 'phù hợp');
+                addBotText('Đang tìm thủ tục ' + contextLabel + ' (trang ' + page + ')...');
+                try {
+                    const params = Object.assign({}, extraParams, { page, size: settings.pageSize });
+                    if (keyword) params[settings.searchParam] = keyword;
+                    const data = await callApi('/api/procedures', params);
+                    const items = data.items || (Array.isArray(data) ? data : []);
+                    if (!items.length) { addBotText('Không tìm thấy thủ tục nào ' + contextLabel + '.'); return; }
+
+                    // Nếu chỉ có đúng 1 kết quả (ở trang đầu) -> hiện thẳng chi tiết,
+                    // đỡ phải qua bảng danh sách bấm thêm 1 lần nữa.
+                    if (items.length === 1 && page === 1 && items[0].code) {
+                        const only = items[0];
+                        addBotText('Tìm thấy duy nhất 1 thủ tục: "' + (only.name || only.title || only.code) + '". Đang mở chi tiết...');
+                        return handleDetail(only.code);
+                    }
+
+                    // Nếu kết quả ĐẦU TIÊN có tên khớp chính xác với keyword (case-insensitive,
+                    // bỏ dấu) -> auto-detail luôn, khỏi qua bảng chọn.
+                    // Ví dụ: gõ "đăng ký kết hôn" -> 8 kết quả, nhưng "Thủ tục đăng ký kết hôn"
+                    // ở vị trí 1 có tên bao trùm đúng keyword -> auto-detail.
+                    if (page === 1 && keyword && items[0] && items[0].code) {
+                        const top = items[0];
+                        const topName = stripVN(top.name || top.title || '');
+                        const kwNorm = stripVN(keyword);
+                        if (kwNorm && topName.includes(kwNorm)) {
+                            addBotText('Tìm thấy thủ tục phù hợp nhất: "' + (top.name || top.title) + '". Đang mở chi tiết...');
+                            return handleDetail(top.code);
+                        }
+                    }
+
+                    data.items = items;
+                    data._refetch = (p) => handleSearch(keyword, p, extraParams, contextLabel);
+                    renderSearchResults(data, page, contextLabel);
+                } catch (err) { addBotError(err); }
+            }
+
+            // Phiên bản "thông minh" cho input tự nhiên: phát hiện địa danh + lọc
+            // procedures ngay trên server bằng các filter ward_code/province_code
+            // (giống cách chatbot chính thức làm: hỏi "thủ tục X tại xã Y" ->
+            // ra đúng thủ tục áp dụng tại xã Y).
+            async function handleNaturalSearch(rawText) {
+                const { wardQuery, keyword } = extractLocationAndKeyword(rawText);
+
+                // Trường hợp 1: người dùng nhắc tới xã/phường cụ thể -> tìm ward rồi
+                // gọi /api/procedures?q=<keyword>&ward_code=<code> để server lọc sẵn
+                // (nhanh hơn nhiều so với tải cả 3544 procedures rồi filter client).
+                if (wardQuery.length) {
+                    addBotText('Đang xác định địa bàn "' + wardQuery.join(', ') + '"...');
+                    try {
+                        const locs = await resolveLocations(wardQuery);
+                        const ward = locs.wards[0];
+                        const prov = locs.provinces[0];
+                        if (ward) {
+                            const kw = keyword || '';
+                            const ctx = 'tại ' + (ward.name || ward.ward_name || ('xã ' + ward.code));
+                            // Ưu tiên lọc theo ward_code (chính xác nhất), kèm keyword nếu có
+                            if (kw) {
+                                return handleSearch(kw, 1, { ward_code: ward.code }, ctx + ' khớp "' + kw + '"');
+                            }
+                            // Không có keyword: trả về tất cả thủ tục của xã qua /api/wards/{code}
+                            addBotText('Đang lấy danh sách thủ tục tại ' + (ward.name || ward.ward_name) + '...');
+                            const { total, items } = await fetchAllWardProcedures(ward.code, 400);
+                            renderWardSearchResults(ward, items, '', total);
+                            return;
+                        }
+                        if (prov) {
+                            const kw = keyword || rawText;
+                            return handleSearch(kw, 1, { [settings.provinceParam]: prov.code }, 'áp dụng tại "' + (prov.name || prov.province_name) + '"');
+                        }
+                        if (!locs.wards.length && !locs.provinces.length) {
+                            addBotText('Không tìm thấy xã/phường/tỉnh khớp "' + wardQuery.join(', ') + '". Sẽ thử tìm bằng toàn bộ câu.');
+                        }
+                    } catch (err) { addBotError(err); return; }
+                }
+
+                // Trường hợp 2: không có địa danh -> search API như cũ, kèm fallback
+                const fallbackKw = await searchWithFallback(rawText);
+                return handleSearch(fallbackKw, 1);
+            }
+
+            // Gọi /api/procedures?q=<toàn bộ câu>. Nếu trả 0 -> thử bỏ dần từ cuối
+            // (vì các từ cuối hay là "tại xã Y", "như thế nào", ... gây nhiễu).
+            async function searchWithFallback(text) {
+                const tokens = text.trim().split(/\s+/);
+                // Thử cả 2 dạng viết "đăng ký" ↔ "đăng kí" trước khi vứt từ cuối,
+                // vì user hay gõ không dấu/sai dấu mà DB server chỉ chấp nhận 1 dạng.
+                // Lưu ý: KHÔNG dùng \b (word boundary) vì tiếng Việt có dấu khiến \b tính sai.
+                const tryVariants = (kw) => {
+                    const variants = [kw];
+                    let swap = kw;
+                    if (/đăng\s+ký\s/i.test(kw) || /đăng\s+ký$/i.test(kw)) {
+                        swap = kw.replace(/(đăng\s+)ký/i, '$1kí');
+                    } else if (/đăng\s+kí\s/i.test(kw) || /đăng\s+kí$/i.test(kw)) {
+                        swap = kw.replace(/(đăng\s+)kí/i, '$1ký');
+                    }
+                    if (swap !== kw) variants.push(swap);
+                    return variants;
+                };
+
+                for (let n = tokens.length; n >= 1; n--) {
+                    const kw = tokens.slice(0, n).join(' ');
+                    for (const v of tryVariants(kw)) {
+                        try {
+                            const d = await callApi('/api/procedures', { [settings.searchParam]: v, size: 1 });
+                            if ((d.items || []).length) return v;
+                        } catch (_) { /* mạng lỗi -> caller sẽ hiển thị */ }
+                    }
+                }
+                return tokens.slice(0, 1).join(' ');
+            }
+
+            async function handleDetail(code) {
+                addBotText('Đang lấy chi tiết thủ tục ' + code + '...');
+                try { const data = await callApi('/api/procedures/' + encodeURIComponent(code)); renderDetail(data, code); }
+                catch (err) { addBotError(err); }
+            }
+
+            async function handleProcedureSub(code, kind) {
+                const label = kind === 'provinces' ? 'các tỉnh áp dụng' : 'các phường/xã áp dụng';
+                addBotText('Đang lấy ' + label + ' cho thủ tục ' + code + '...');
+                try {
+                    const data = await callApi('/api/procedures/' + encodeURIComponent(code) + '/' + kind);
+                    const items = data.items || (Array.isArray(data) ? data : []);
+                    renderReferenceList(items, { emptyText: 'Không có dữ liệu ' + label + '.' });
+                } catch (err) { addBotError(err); }
+            }
+
+            async function downloadAttachment(id, filename) {
+                addBotText('Đang tải biểu mẫu...');
+                try {
+                    const res = await fetch(pathFor('/api/attachments/' + encodeURIComponent(id) + '/download'), { headers: headersFor() });
+                    if (!res.ok) throw new Error('http_' + res.status);
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = filename || ('bieu-mau-' + id + '.docx');
+                    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+                    addBotText('Đã tải xong biểu mẫu.');
+                } catch (err) { addBotError(err); }
+            }
+
+            async function listAgencies() {
+                addBotText('Đang lấy danh sách cơ quan ban hành...');
+                try {
+                    const data = await callApi('/api/agencies');
+                    const items = data.items || (Array.isArray(data) ? data : []);
+                    renderReferenceList(items, {
+                        emptyText: 'Không có dữ liệu cơ quan.',
+                        pickLabel: 'Xem thủ tục của cơ quan này',
+                        onPick: (code, name) => handleSearch(null, 1, { [settings.agencyParam]: code }, 'do "' + name + '" ban hành'),
+                    });
+                } catch (err) { addBotError(err); }
+            }
+
+            async function listProvinces() {
+                addBotText('Đang lấy danh sách tỉnh/thành...');
+                try {
+                    const data = await callApi('/api/provinces');
+                    const items = data.items || (Array.isArray(data) ? data : []);
+                    renderReferenceList(items, {
+                        emptyText: 'Không có dữ liệu tỉnh/thành.',
+                        pickLabel: 'Xem thủ tục áp dụng ở tỉnh này',
+                        onPick: (code, name) => handleSearch(null, 1, { [settings.provinceParam]: code }, 'áp dụng tại "' + name + '"'),
+                    });
+                } catch (err) { addBotError(err); }
+            }
+
+            async function listCategories(keyword) {
+                addBotText('Đang lấy danh mục/lĩnh vực' + (keyword ? ' khớp "' + keyword + '"' : '') + '...');
+                try {
+                    const params = keyword ? { [settings.searchParam]: keyword } : undefined;
+                    const data = await callApi('/api/categories', params);
+                    const items = data.items || (Array.isArray(data) ? data : []);
+                    renderReferenceList(items, {
+                        emptyText: 'Không có danh mục nào phù hợp.',
+                        pickLabel: 'Xem thủ tục trong danh mục này',
+                        onPick: (code, name) => handleSearch(null, 1, { [settings.categoryParam]: code }, 'thuộc danh mục "' + name + '"'),
+                    });
+                } catch (err) { addBotError(err); }
+            }
+
+            async function listServiceGroups() {
+                addBotText('Đang lấy danh sách nhóm dịch vụ...');
+                try {
+                    const data = await callApi('/api/service-groups');
+                    const items = data.items || (Array.isArray(data) ? data : []);
+                    renderReferenceList(items, {
+                        emptyText: 'Không có nhóm dịch vụ nào.',
+                        pickLabel: 'Xem thủ tục trong nhóm này',
+                        onPick: (code, name) => handleSearch(null, 1, { [settings.serviceGroupParam]: code }, 'thuộc nhóm "' + name + '"'),
+                    });
+                } catch (err) { addBotError(err); }
+            }
+
+            async function searchWards(keyword) {
+                addBotText('Đang tìm phường/xã khớp "' + keyword + '"...');
+                try {
+                    const params = {}; params[settings.searchParam] = keyword;
+                    const data = await callApi('/api/wards', params);
+                    const items = data.items || (Array.isArray(data) ? data : []);
+                    renderReferenceList(items, {
+                        emptyText: 'Không tìm thấy phường/xã phù hợp.',
+                        pickLabel: 'Xem chi tiết',
+                        onPick: (code) => wardDetail(code),
+                    });
+                } catch (err) { addBotError(err); }
+            }
+
+            async function wardDetail(code) {
+                addBotText('Đang lấy chi tiết phường/xã ' + code + '...');
+                try { const data = await callApi('/api/wards/' + encodeURIComponent(code)); renderRaw(data, 'Chi tiết phường/xã ' + code + ' (kèm thủ tục tiếp nhận):'); }
+                catch (err) { addBotError(err); }
+            }
+
+            async function showXuanLangInfo() {
+                // Thông tin xã Xuân Lãng - hình thành theo Nghị quyết 202/2025/QH15.
+                // Cập nhật: 01/07/2025. Hiển thị hardcode để luôn chính xác không phụ thuộc API.
+                const ward = {
+                    name: 'Xã Xuân Lãng',
+                    merged_from: ['Thị trấn Thanh Lãng', 'Thị trấn Đạo Đức', 'Xã Tân Phong', 'Xã Phú Xuân'],
+                    area_km2: '29,9 km²',
+                    population: '48.186 người',
+                    effective_date: '01/07/2025',
+                    office: 'Trụ sở thị trấn Đạo Đức cũ',
+                    legal_basis: 'Nghị quyết số 202/2025/QH15 của Quốc hội',
+                };
+
+                const card = document.createElement('div');
+                card.className = 'bubble bot';
+                card.style.maxWidth = '580px';
+
+                // Tiêu đề
+                const title = document.createElement('div');
+                title.style.fontWeight = '700';
+                title.style.color = 'var(--navy)';
+                title.style.fontSize = '15px';
+                title.style.marginBottom = '2px';
+                title.textContent = '📍 ' + ward.name;
+                card.appendChild(title);
+
+                const sub = document.createElement('div');
+                sub.style.fontSize = '12px';
+                sub.style.color = 'var(--muted)';
+                sub.style.marginBottom = '10px';
+                sub.textContent = ward.legal_basis;
+                card.appendChild(sub);
+
+                // Bảng thông tin
+                const infoList = document.createElement('div');
+                infoList.style.display = 'grid';
+                infoList.style.gridTemplateColumns = '120px 1fr';
+                infoList.style.gap = '6px 12px';
+                infoList.style.fontSize = '13px';
+
+                const rows = [
+                    ['Diện tích', ward.area_km2],
+                    ['Dân số', ward.population],
+                    ['Vận hành từ', ward.effective_date],
+                    ['Trụ sở', ward.office],
+                ];
+                rows.forEach(([k, v]) => {
+                    const a = document.createElement('div');
+                    a.style.color = 'var(--muted)';
+                    a.textContent = k + ':';
+                    const b = document.createElement('div');
+                    b.style.fontWeight = '500';
+                    b.textContent = v;
+                    infoList.appendChild(a);
+                    infoList.appendChild(b);
+                });
+                card.appendChild(infoList);
+
+                // Hộp "Hình thành từ" - sáp nhập các đơn vị
+                const mergedBox = document.createElement('div');
+                mergedBox.style.marginTop = '12px';
+                mergedBox.style.padding = '10px 12px';
+                mergedBox.style.background = '#F0F3F5';
+                mergedBox.style.border = '1px solid var(--border)';
+                mergedBox.style.borderRadius = '8px';
+                mergedBox.style.fontSize = '13px';
+
+                const mergedTitle = document.createElement('div');
+                mergedTitle.style.fontWeight = '600';
+                mergedTitle.style.color = 'var(--navy)';
+                mergedTitle.style.marginBottom = '6px';
+                mergedTitle.textContent = '🏛️ Hình thành từ sáp nhập';
+                mergedBox.appendChild(mergedTitle);
+
+                const mergedList = document.createElement('div');
+                mergedList.textContent = ward.merged_from.join(' • ');
+                mergedList.style.color = '#1f2937';
+                mergedList.style.lineHeight = '1.6';
+                mergedBox.appendChild(mergedList);
+
+                const mergedNote = document.createElement('div');
+                mergedNote.style.marginTop = '6px';
+                mergedNote.style.fontSize = '11.5px';
+                mergedNote.style.color = 'var(--muted)';
+                mergedNote.style.fontStyle = 'italic';
+                mergedNote.textContent = 'Việc sắp xếp thực hiện theo Nghị quyết 202/2025/QH15, chính thức vận hành từ 01/07/2025.';
+                mergedBox.appendChild(mergedNote);
+
+                card.appendChild(mergedBox);
+
+                // Gợi ý 2 nút hành động nhanh
+                const actions = document.createElement('div');
+                actions.style.marginTop = '12px';
+                actions.style.display = 'flex';
+                actions.style.gap = '8px';
+                actions.style.flexWrap = 'wrap';
+
+                const btnList = document.createElement('button');
+                btnList.className = 'btn btn-primary';
+                btnList.textContent = '📋 Xem thủ tục tại xã';
+                btnList.onclick = () => handleNaturalSearch('thủ tục tại xã Xuân Lãng');
+
+                const btnSearch = document.createElement('button');
+                btnSearch.className = 'btn btn-ghost';
+                btnSearch.textContent = '🔍 Tìm thủ tục cụ thể';
+                btnSearch.onclick = () => {
+                    const input = document.getElementById('userInput');
+                    if (input) {
+                        input.value = '';
+                        input.placeholder = 'Nhập tên thủ tục muốn tìm tại xã Xuân Lãng...';
+                        input.focus();
+                    }
+                };
+
+                actions.appendChild(btnList);
+                actions.appendChild(btnSearch);
+                card.appendChild(actions);
+
+                addMessage('bot', card);
+            }
+
+            async function showStats() {
+                addBotText('Đang lấy thống kê tổng hợp hệ thống...');
+                try { const data = await callApi('/api/stats'); renderRaw(data, 'Thống kê hệ thống:'); }
+                catch (err) { addBotError(err); }
+            }
+
+            function showHelp() {
+                const box = document.createElement('div');
+                box.appendChild(textNode('Bạn có thể gõ tự nhiên (khuyến nghị), hoặc dùng các lệnh sau:'));
+                const note = document.createElement('div');
+                note.style.fontSize = '12px'; note.style.color = 'var(--muted)'; note.style.margin = '4px 0 8px';
+                note.textContent = 'Mẹo: chatbot hiểu câu tiếng Việt tự nhiên. Gõ ví dụ: "thủ tục đăng ký kết hôn tại xã Xuân Lãng" — hệ thống tự tách địa bàn và tìm đúng thủ tục áp dụng tại xã đó.';
+                box.appendChild(note);
+                const list = document.createElement('div'); list.className = 'help-list';
+                const rows = [
+                    ['Tên thủ tục (ví dụ: đăng ký kết hôn)', 'Tìm thủ tục theo từ khóa trên toàn quốc'],
+                    ['Câu tự nhiên có "tại xã/phường/tỉnh X"', 'Lọc đúng thủ tục áp dụng tại địa bàn X'],
+                    ['Mã thủ tục (ví dụ: 1.001234)', 'Xem chi tiết thủ tục'],
+                    ['/danhmuc [từ khóa]', 'Xem/tìm danh mục, lĩnh vực'],
+                    ['/canquan', 'Danh sách cơ quan ban hành'],
+                    ['/tinhthanh', 'Danh sách tỉnh/thành'],
+                    ['/nhom', 'Danh sách nhóm dịch vụ'],
+                    ['/timphuong [từ khóa]', 'Tìm phường/xã'],
+                    ['/phuong <mã>', 'Chi tiết một phường/xã'],
+                    ['/phuongtoi', 'Phường gắn với khóa tenant hiện tại'],
+                    ['/thongke', 'Thống kê tổng hợp hệ thống'],
+                    ['/trogiup', 'Hiện lại danh sách lệnh này'],
+                ];
+                rows.forEach(([cmd, desc]) => {
+                    const row = document.createElement('div'); row.className = 'row';
+                    const c = document.createElement('code'); c.textContent = cmd;
+                    const d = document.createElement('span'); d.textContent = desc;
+                    row.appendChild(c); row.appendChild(d); list.appendChild(row);
+                });
+                box.appendChild(list);
+                addMessage('bot', box);
+            }
+
+            // ---------- input routing ----------
+            const codePattern = /^[A-Za-z0-9][A-Za-z0-9._-]{2,24}$/;
+            function looksLikeCode(text) { return codePattern.test(text.trim()) && /\d/.test(text) && !text.includes(' '); }
+
+            function handleUserInput(raw) {
+                const text = raw.trim();
+                if (!text) return;
+                addUserText(text);
+
+                if (text.startsWith('/')) {
+                    const [cmd, ...rest] = text.slice(1).split(' ');
+                    const arg = rest.join(' ').trim();
+                    switch (cmd) {
+                        case 'chitiet': return handleDetail(arg);
+                        case 'danhmuc': return listCategories(arg || undefined);
+                        case 'canquan': return listAgencies();
+                        case 'tinhthanh': return listProvinces();
+                        case 'nhom': return listServiceGroups();
+                        case 'timphuong': return arg ? searchWards(arg) : addBotText('Nhập từ khóa sau lệnh, ví dụ: /timphuong Tân Bình');
+                        case 'phuong': return arg ? wardDetail(arg) : addBotText('Nhập mã phường sau lệnh, ví dụ: /phuong 27154');
+                        case 'phuongtoi': return myWard();
+                        case 'thongke': return showStats();
+                        case 'trogiup': return showHelp();
+                        default: return addBotText('Không nhận diện được lệnh "/' + cmd + '". Gõ /trogiup để xem danh sách lệnh.');
+                    }
+                }
+
+                if (looksLikeCode(text)) {
+                    addBotText('Tôi hiểu đây là mã thủ tục, đang tra cứu chi tiết.');
+                    handleDetail(text);
+                    return;
+                }
+                handleNaturalSearch(text);
+            }
+
+            const userInputEl = document.getElementById('userInput');
+            let isComposing = false;
+            let lastSubmitAt = 0;
+
+            // Vietnamese (and other) IME composition: while the user is still building
+            // an accented syllable, the browser marks the field as "composing". Some
+            // IMEs use Enter to confirm that syllable, which used to fire our submit
+            // handler early with a half-typed value, then fire again for the real
+            // Enter right after — causing the same message to be sent twice with the
+            // second copy trimmed to just the last syllable. We ignore Enter while
+            // composing, and also ignore composition's own confirming keydown (229).
+            userInputEl.addEventListener('compositionstart', () => { isComposing = true; });
+            userInputEl.addEventListener('compositionend', () => { isComposing = false; });
+
+            function trySubmit() {
+                const now = Date.now();
+                if (now - lastSubmitAt < 250) return; // guard against duplicate rapid-fire events
+                lastSubmitAt = now;
+                const value = userInputEl.value;
+                userInputEl.value = '';
+                handleUserInput(value);
+            }
+
+            document.getElementById('sendBtn').addEventListener('click', trySubmit);
+            userInputEl.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+                if (isComposing || e.keyCode === 229) return; // still composing an accented character
+                e.preventDefault();
+                trySubmit();
             });
-        });
 
-        addBot('Xin chào! Tôi là trợ lý tra cứu thủ tục hành chính xã Xuân Lãng (Phú Thọ). Gõ /trogiup để xem lệnh hoặc nhập tên thủ tục bạn cần tìm.');
-    }
+            document.getElementById('chips').addEventListener('click', (e) => {
+                const action = e.target.getAttribute('data-action');
+                if (!action) return;
+                if (action === 'health') runHealthCheck();
+                if (action === 'sample-search') handleSearch('đăng ký kết hôn', 1);
+                if (action === 'xuanlang') handleNaturalSearch('thủ tục tại xã Xuân Lãng');
+                if (action === 'xuanlang-kethon') handleNaturalSearch('thủ tục đăng ký kết hôn tại xã Xuân Lãng');
+                if (action === 'categories') listCategories();
+                if (action === 'agencies') listAgencies();
+                if (action === 'provinces') listProvinces();
+                if (action === 'service-groups') listServiceGroups();
+                if (action === 'myward') showXuanLangInfo();
+                if (action === 'stats') showStats();
+                if (action === 'help') showHelp();
+            });
 
-    if(document.readyState==='loading'){
-        document.addEventListener('DOMContentLoaded',init);
-    }else{
-        init();
-    }
-})();
-</script>
+            // ---------- initial greeting ----------
+            addBotText('Xin chào! Tôi là trợ lý tra cứu thủ tục hành chính cho xã Xuân Lãng (tỉnh Phú Thọ), kết nối tới dichvucong.cloudgo.vn. Bạn có thể gõ câu tự nhiên (ví dụ: "thủ tục đăng ký kết hôn tại xã Xuân Lãng") hoặc dùng các lệnh /danhmuc, /canquan, /tinhthanh, /nhom, /timphuong... Gõ /trogiup để xem đầy đủ.');
+
+        })();
+    </script>
 </body>
+
 </html>
