@@ -342,11 +342,7 @@
         return b;
     }
 
-    function txt(t) {
-        const d = document.createElement('div');
-        d.textContent = safeString(t);
-        return d;
-    }
+    function txt(t) { const d = document.createElement('div'); d.textContent = t; return d; }
     function addBot(t) { return appendChat('bot', txt(t)); }
     function addUser(t) { appendChat('user', txt(t)); }
     function addBotErr(e) { appendChat('bot', txt(errMsg(e))).classList.add('cw-err-bubble'); }
@@ -471,22 +467,13 @@
 
     /* ─── Input handlers ───────────────────────────────── */
     function doSend() {
-        let raw = $input.value;
-        const v = (typeof raw === 'string' ? raw : (raw && raw.textContent) || '').trim();
+        const v = $input.value.trim();
         if (!v) return;
         addUser(v);
         $input.value = '';
         $sendBtn.disabled = true;
-        try { handleAction(v); } catch(e) { console.error('handleAction error:', e); }
+        handleAction(v);
         setTimeout(() => { $sendBtn.disabled = false; }, 800);
-    }
-
-    function safeString(x) {
-        if (x == null) return '';
-        if (typeof x === 'string') return x;
-        if (typeof x === 'number' || typeof x === 'boolean') return String(x);
-        if (x && typeof x === 'object') return x.textContent || x.value || x.outerHTML || '';
-        return String(x);
     }
 
     /* ─── Widget open/close ────────────────────────────── */
