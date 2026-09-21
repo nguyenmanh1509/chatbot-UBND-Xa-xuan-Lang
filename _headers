@@ -1,0 +1,8 @@
+/*
+  X-Frame-Options: ALLOWALL
+  Content-Security-Policy: frame-ancestors *
+  Access-Control-Allow-Origin: *
+
+/embed.html
+  X-Frame-Options: ALLOWALL
+  Content-Security-Policy: frame-ancestors *
