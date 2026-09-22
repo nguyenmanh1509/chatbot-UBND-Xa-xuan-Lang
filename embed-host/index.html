@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chatbot Xuân Lãng - Embed</title>
+<title>Chatbot Xuân Lãng - Nhúng</title>
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -13,65 +13,97 @@
         overflow: hidden;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    .cw-host {
+
+    /* === Container bao bọc iframe === */
+    /* Mặc định: chỉ hiện launcher 60x60 */
+    .chat-wrap {
         position: fixed;
-        bottom: 24px;
-        right: 24px;
+        bottom: 0;
+        right: 0;
+        width: 60px;
+        height: 60px;
+        z-index: 999999;
+        transition: width .3s cubic-bezier(.2,.9,.3,1.2),
+                    height .3s cubic-bezier(.2,.9,.3,1.2);
+    }
+
+    /* Khi mở: phóng to 420x640 */
+    .chat-wrap.open {
         width: 420px;
         height: 640px;
-        max-width: calc(100vw - 20px);
-        max-height: calc(100vh - 110px);
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.05);
-        background: #fff;
-        z-index: 999999;
-        transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
     }
-    .cw-host:hover { transform: translateY(-4px); }
-    .cw-host iframe {
+
+    .chat-wrap iframe {
         width: 100%;
         height: 100%;
         border: none;
         display: block;
+        border-radius: 30px;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.05);
         background: #fff;
+        transition: box-shadow .3s;
     }
-    .cw-label {
-        position: absolute;
-        top: -30px;
-        right: 0;
-        background: linear-gradient(135deg, #0B3D62, #1e54c7);
-        color: #fff;
-        padding: 6px 16px;
-        border-radius: 20px 20px 0 0;
-        font-size: 12px;
-        font-weight: 600;
-        letter-spacing: 0.3px;
-        box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
-        user-select: none;
-        pointer-events: none;
+
+    .chat-wrap.open iframe {
+        border-radius: 16px;
     }
+
+    /* Mobile */
     @media (max-width: 520px) {
-        .cw-host {
+        .chat-wrap {
+            bottom: 0;
+            right: 0;
+        }
+        .chat-wrap.open {
             width: calc(100vw - 20px);
             height: calc(100vh - 110px);
-            right: 10px;
-            bottom: 90px;
             border-radius: 14px;
         }
-        .cw-label { display: none; }
     }
 </style>
 </head>
 <body>
-    <div class="cw-host">
-        <div class="cw-label">Hỗ trợ tra cứu</div>
-        <iframe
-          src="https://nguyenmanh1509.github.io/chatbot-UBND-Xa-xuan-Lang/chat.html?v=2026"
-          allow="clipboard-write"
-          title="Chatbot UBND Xã Xuân Lãng"
-          loading="lazy">
-        </iframe>
-    </div>
+
+<div class="chat-wrap" id="chatWrap">
+    <iframe
+        id="chatFrame"
+        src="https://nguyenmanh1509.github.io/chatbot-UBND-Xa-xuan-Lang/index.html"
+        title="Chatbot UBND Xã Xuân Lãng"
+        allow="clipboard-write"
+        loading="lazy">
+    </iframe>
+</div>
+
+<script>
+(function () {
+    var wrap = document.getElementById('chatWrap');
+    var frame = document.getElementById('chatFrame');
+
+    // Nghe postMessage từ iframe
+    window.addEventListener('message', function (e) {
+        // Chỉ xử lý message từ chatbot
+        if (!e.data || e.data.type !== 'xuanlang-chat-resize') return;
+
+        if (e.data.open) {
+            wrap.classList.add('open');
+        } else {
+            wrap.classList.remove('open');
+        }
+    });
+
+    // Nếu không nhận được postMessage (do CSP hoặc cross-origin),
+    // mặc định để iframe 420x640 và chat tự quản lý
+    // Sau 2s không thấy message thì resize mặc định
+    var hasMessage = false;
+    window.addEventListener('message', function () { hasMessage = true; });
+    setTimeout(function () {
+        if (!hasMessage) {
+            wrap.classList.add('open');
+        }
+    }, 2000);
+})();
+</script>
+
 </body>
 </html>
