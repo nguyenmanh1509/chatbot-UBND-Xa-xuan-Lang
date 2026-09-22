@@ -58,15 +58,46 @@
             overflow: hidden;
             z-index: 100;
             transform-origin: bottom right;
-            animation: widgetIn .25s cubic-bezier(.2,.9,.3,1.2);
+            animation: widgetIn .25s cubic-bezier(.2, .9, .3, 1.2);
         }
+
         .app[hidden] {
             display: none !important;
         }
 
+        /* ===== IFRAME WIDGET MODE ===== */
+
+        body.in-iframe {
+            background: transparent !important;
+        }
+
+        body.in-iframe .chat-launcher {
+            right: 10px;
+            bottom: 10px;
+        }
+
+        body.in-iframe .app {
+            right: 10px;
+            bottom: 80px;
+            width: calc(100% - 20px);
+            height: calc(100% - 100px);
+            max-width: 420px;
+        }
+
+        body.in-iframe .chat-close {
+            display: inline-flex !important;
+        }
+
         @keyframes widgetIn {
-            from { transform: scale(.85) translateY(20px); opacity: 0; }
-            to   { transform: scale(1) translateY(0);     opacity: 1; }
+            from {
+                transform: scale(.85) translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
         }
 
         /* NÚT ICON BONG BÓNG */
@@ -84,20 +115,24 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35), 0 0 0 4px rgba(255,255,255,0.85);
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35), 0 0 0 4px rgba(255, 255, 255, 0.85);
             z-index: 101;
             transition: transform .2s, box-shadow .2s;
         }
+
         .chat-launcher:hover {
             transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 14px 36px rgba(15, 23, 42, 0.4), 0 0 0 4px rgba(255,255,255,0.9);
+            box-shadow: 0 14px 36px rgba(15, 23, 42, 0.4), 0 0 0 4px rgba(255, 255, 255, 0.9);
         }
+
         .chat-launcher:active {
             transform: translateY(0) scale(.97);
         }
+
         .chat-launcher.open {
             background: linear-gradient(135deg, #475569 0%, #64748b 100%);
         }
+
         .chat-launcher-badge {
             position: absolute;
             top: 4px;
@@ -116,12 +151,21 @@
             box-shadow: 0 0 0 2px #fff;
             animation: pulseBadge 1.8s ease-in-out infinite;
         }
+
         .chat-launcher-badge.hidden {
             display: none;
         }
+
         @keyframes pulseBadge {
-            0%, 100% { transform: scale(1); }
-            50%      { transform: scale(1.18); }
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.18);
+            }
         }
 
         /* NÚT ĐÓNG PANEL (thay thế nút Cài đặt cũ - sẽ ẩn trên mobile) */
@@ -130,8 +174,8 @@
             width: 32px;
             height: 32px;
             border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.25);
-            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.1);
             color: #fff;
             font-size: 16px;
             cursor: pointer;
@@ -139,9 +183,15 @@
             justify-content: center;
             transition: background .15s;
         }
-        .chat-close:hover { background: rgba(255,255,255,0.22); }
+
+        .chat-close:hover {
+            background: rgba(255, 255, 255, 0.22);
+        }
+
         @media (max-width: 520px) {
-            .chat-close { display: inline-flex; }
+            .chat-close {
+                display: inline-flex;
+            }
         }
 
         /* Backdrop mobile */
@@ -152,7 +202,10 @@
             z-index: 99;
             animation: fade .2s ease;
         }
-        .chat-backdrop[hidden] { display: none !important; }
+
+        .chat-backdrop[hidden] {
+            display: none !important;
+        }
 
         @media (max-width: 520px) {
             .app {
@@ -163,13 +216,17 @@
                 max-width: none;
                 border-radius: 14px;
             }
+
             .chat-launcher {
                 right: 16px;
                 bottom: 16px;
                 width: 56px;
                 height: 56px;
             }
-            .chat-close { display: flex; }
+
+            .chat-close {
+                display: flex;
+            }
         }
 
         .header {
@@ -688,8 +745,11 @@
 
     <!-- NÚT ICON BONG BÓNG CHAT - góc dưới phải -->
     <button class="chat-launcher" id="chatLauncher" aria-label="Mở chat trợ lý" title="Trợ lý Xuân Lãng">
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path
+                d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z">
+            </path>
         </svg>
         <span class="chat-launcher-badge" id="chatLauncherBadge">1</span>
     </button>
@@ -829,17 +889,28 @@
             const chatBackdrop = document.getElementById('chatBackdrop');
             const launcherBadge = document.getElementById('chatLauncherBadge');
 
+            function notifyParent(open) {
+                if (window.self === window.top) return;
+                window.parent.postMessage({
+                    type: 'xuanlang-chat-resize',
+                    open: open
+                }, '*');
+            }
+
             function openChat() {
                 appPanel.hidden = false;
                 launcher.classList.add('open');
                 launcherBadge.classList.add('hidden');
+
+                notifyParent(true);
+
                 if (window.matchMedia('(max-width: 520px)').matches) {
                     chatBackdrop.hidden = false;
                 }
-                // Focus vào input nếu có
+
                 const input = document.getElementById('userInput');
                 if (input) setTimeout(() => input.focus(), 200);
-                // Scroll xuống cuối
+
                 const chatEl = document.getElementById('chat');
                 if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
             }
@@ -848,7 +919,9 @@
                 appPanel.hidden = true;
                 launcher.classList.remove('open');
                 chatBackdrop.hidden = true;
-                settingsPanel.classList.remove('open'); // đóng cài đặt nếu đang mở
+                settingsPanel.classList.remove('open');
+
+                notifyParent(false);
             }
 
             launcher.addEventListener('click', () => {
@@ -861,6 +934,52 @@
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && !appPanel.hidden) closeChat();
             });
+
+            // ---------- IFRAME MODE DETECT ----------
+            (function () {
+                let inIframe = false;
+
+                try {
+                    inIframe = window.self !== window.top;
+                } catch (e) {
+                    inIframe = true;
+                }
+
+                if (!inIframe) return;
+
+                document.body.classList.add('in-iframe');
+
+                const usp = new URLSearchParams(window.location.search);
+
+                if (usp.get('api')) {
+                    settings.baseUrl = usp.get('api').replace(/\/$/, '');
+                }
+
+                if (usp.get('key')) {
+                    settings.apiKey = usp.get('key');
+                    settings.mode = 'rest';
+                }
+
+                const autoQ = usp.get('q');
+
+                // Mặc định đóng, chỉ hiện launcher
+                appPanel.hidden = true;
+
+                notifyParent(false);
+
+                if (autoQ) {
+                    openChat();
+
+                    setTimeout(() => {
+                        const input = document.getElementById('userInput');
+
+                        if (input) {
+                            input.value = autoQ;
+                            document.getElementById('sendBtn').click();
+                        }
+                    }, 600);
+                }
+            })();
 
             // ---------- low-level helpers ----------
             function pathFor(p) {
@@ -890,15 +1009,19 @@
                 return ct.includes('application/json') ? res.json() : res;
             }
             function errorMessage(err) {
+                const inIframe = document.body.classList.contains('in-iframe');
+                const corsHint = inIframe
+                    ? ' Trang đang chạy trong iframe nên có thể bị trình duyệt chặn CORS. Bạn có thể mở chatbot ở tab riêng bằng nút "Mở tab mới" bên dưới.'
+                    : '';
                 switch (err.message) {
                     case 'network':
-                        return 'Không gọi được máy chủ. Có thể do trình duyệt chặn CORS (nếu trang này không cùng domain với dichvucong.cloudgo.vn), hoặc Base URL sai.';
+                        return 'Không gọi được máy chủ. Có thể do trình duyệt chặn CORS (nếu trang này không cùng domain với dichvucong.cloudgo.vn), hoặc Base URL sai.' + corsHint;
                     case 'unauthorized':
                         return settings.mode === 'rest'
                             ? 'Thiếu hoặc sai X-API-Key. Vào Cài đặt để nhập đúng khóa, hoặc chuyển sang chế độ "Cổng chung".'
                             : 'Yêu cầu bị từ chối do thiếu xác thực. Thử kiểm tra lại Base URL trong Cài đặt.';
                     case 'notfound': return 'Không tìm thấy dữ liệu — kiểm tra lại mã hoặc từ khóa.';
-                    default: return 'Có lỗi khi gọi API (' + err.message + '). Vui lòng thử lại.';
+                    default: return 'Có lỗi khi gọi API (' + err.message + '). Vui lòng thử lại.' + corsHint;
                 }
             }
 
@@ -1125,8 +1248,8 @@
             // Render 1 nhóm giấy tờ (gộp theo case_name để có tiêu đề "Giấy tờ phải xuất trình")
             // Header gọn cho detail (các dòng key-value ngắn)
             function detailRow(label, valueNode) {
-                    const row = document.createElement('div'); row.className = 'detail-row';
-                    const k = document.createElement('div'); k.className = 'k'; k.textContent = label;
+                const row = document.createElement('div'); row.className = 'detail-row';
+                const k = document.createElement('div'); k.className = 'k'; k.textContent = label;
                 const v = document.createElement('div'); v.className = 'v';
                 if (valueNode) {
                     if (typeof valueNode === 'string') v.textContent = valueNode;
