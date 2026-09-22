@@ -67,13 +67,33 @@
 
         /* ===== IFRAME WIDGET MODE ===== */
 
+        html.in-iframe,
         body.in-iframe {
             background: transparent !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        /* Khi panel đang ẩn: chỉ hiện launcher, mọi thứ khác ẩn */
+        body.in-iframe > *:not(.chat-launcher):not(#appPanel):not(#chatBackdrop) {
+            display: none !important;
+        }
+
+        body.in-iframe #appPanel[hidden] {
+            display: none !important;
+        }
+
+        body.in-iframe #chatBackdrop[hidden] {
+            display: none !important;
         }
 
         body.in-iframe .chat-launcher {
-            right: 10px;
-            bottom: 10px;
+            right: 8px;
+            bottom: 8px;
+            width: 64px;
+            height: 64px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.35) !important;
         }
 
         body.in-iframe .app {
@@ -948,6 +968,7 @@
                 if (!inIframe) return;
 
                 document.body.classList.add('in-iframe');
+                document.documentElement.classList.add('in-iframe');
 
                 const usp = new URLSearchParams(window.location.search);
 
