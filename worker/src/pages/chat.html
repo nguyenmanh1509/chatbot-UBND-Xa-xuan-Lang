@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trợ lý tra cứu thủ tục hành chính — UBND xã Xuân Lãng</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f1f5f9;color:#0f172a}
+.wrap{max-width:760px;margin:0 auto;padding:16px;height:100vh;display:flex;flex-direction:column}
+h1{font-size:17px;margin:0 0 12px}
+#log{flex:1;overflow:auto;background:#fff;border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.msg{margin-bottom:10px;padding:10px 12px;border-radius:12px;max-width:85%;white-space:pre-wrap;line-height:1.5;font-size:14px}
+.user{background:#0B3D62;color:#fff;margin-left:auto}
+.bot{background:#f1f5f9}
+form{display:flex;gap:8px;margin-top:12px}
+input{flex:1;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px}
+button{padding:12px 18px;border:0;border-radius:10px;background:#0B3D62;color:#fff;font-size:15px;cursor:pointer}
+.meta{font-size:11px;color:#94a3b8;margin-top:6px;text-align:center}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.chip{padding:7px 12px;border:1px solid #cbd5e1;border-radius:16px;background:#fff;font-size:13px;cursor:pointer}
+.chip:hover{background:#e2e8f0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Trợ lý tra cứu thủ tục hành chính UBND xã Xuân Lãng</h1>
+  <div id="log"></div>
+  <div class="chips" id="chips"></div>
+  <form id="f">
+    <input id="q" placeholder="Nhập câu hỏi, ví dụ: cần hồ sơ gì để đăng ký kết hôn?" autocomplete="off">
+    <button>Gửi</button>
+  </form>
+  <div class="meta" id="meta"></div>
+</div>
+<script>
+const log = document.getElementById('log');
+const q = document.getElementById('q');
+const meta = document.getElementById('meta');
+const sid = Math.random().toString(36).slice(2);
+
+const SUGGESTIONS = [
+  'Cần hồ sơ gì để đăng ký kết hôn tại xã Xuân Lãng?',
+  'Thủ tục cấp hộ khẩu',
+  'Đăng ký xe máy',
+  'Cấp chứng nhận sinh trẻ',
+  '1.000894'
+];
+
+const chips = document.getElementById('chips');
+for (const s of SUGGESTIONS) {
+  const c = document.createElement('div');
+  c.className = 'chip';
+  c.textContent = s;
+  c.onclick = () => { q.value = s; document.getElementById('f').requestSubmit(); };
+  chips.appendChild(c);
+}
+
+function add(t, who) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + who;
+  d.textContent = t;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function send(t) {
+  const text = t.trim();
+  if (!text) return;
+  q.value = '';
+  add(text, 'user');
+  try {
+    const r = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, sessionId: sid })
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'Lỗi');
+    (j.messages || []).forEach((m) => add(m, 'bot'));
+    meta.textContent = 'AI: ' + (j.engine || 'none') + ' · Phạm vi: ' + (j.scope || '-');
+  } catch (e) {
+    add('Xin lỗi, ' + e.message, 'bot');
+  }
+}
+
+document.getElementById('f').onsubmit = (e) => { e.preventDefault(); send(q.value); };
+
+// Lời chào
+fetch('/api/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ text: '/trogiup', sessionId: sid })
+}).then(r => r.json()).then(j => { (j.messages || []).forEach((m) => add(m, 'bot')); });
+</script>
+</body>
+</html>

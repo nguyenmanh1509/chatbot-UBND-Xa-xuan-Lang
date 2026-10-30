@@ -1,10 +1,7 @@
-# OS files
+node_modules/
+worker/.wrangler/
+worker/test-results/
+.env
+.env.*
+!.env.example
 .DS_Store
-Thumbs.db
-
-# Editor
-.vscode/
-.idea/
-
-# Logs
-*.log

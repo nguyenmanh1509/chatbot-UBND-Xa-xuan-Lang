@@ -1,0 +1,17 @@
+{
+  "name": "ubnd-xuanlang-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Chatbot tra cứu thủ tục hành chính — UBND xã Xuân Lãng, tỉnh Phú Thọ. Hỗ trợ Facebook Messenger, Zalo Bot, Zalo OA.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node test/core.test.mjs && node test/facebook.test.mjs && node test/config.test.mjs",
+    "test:core": "node test/core.test.mjs",
+    "test:fb": "node test/facebook.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

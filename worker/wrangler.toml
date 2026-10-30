@@ -1,0 +1,37 @@
+name = "ubnd-xuanlang-bot"
+main = "src/index.js"
+compatibility_date = "2025-10-01"
+
+# Load file .html dưới dạng text module
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+[vars]
+# Admin đăng nhập bằng Authorization: Bearer <mật khẩu>
+# KHÔNG đặt ở đây (vars sẽ ghi đè secret).
+# Đặt bằng:  wrangler secret put ADMIN_PASSWORD
+SITE_NAME = "Trợ lý tra cứu thủ tục hành chính UBND xã Xuân Lãng"
+
+[observability]
+enabled = true
+
+# Cron làm mới access token Zalo OA mỗi ngày 03:00 (giờ VN = 20:00 UTC hôm trước)
+[triggers]
+crons = ["0 20 * * *"]
+
+# --- KV namespace thật (đã tạo trên Cloudflare) ---
+[[kv_namespaces]]
+binding = "CONFIG"
+id = "f4e0ec9ef1144ac69e9bd7064ea760db"
+
+[[kv_namespaces]]
+binding = "LOGS"
+id = "c0537ffcf3fb4499bdcf16e3785608c2"
+
+# --- Gán KV cho phát triển cục bộ ---
+# Wrangler dev dùng id ở trên; nếu muốn tách riêng cho local thì bỏ comment
+# các khối trên và dùng id local.
+
+

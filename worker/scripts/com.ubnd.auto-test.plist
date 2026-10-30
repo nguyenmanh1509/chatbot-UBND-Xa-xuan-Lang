@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ubnd-auto-test</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>/Users/nguyenmanh/chatbot-UBND-Xa-xuan-Lang/worker/scripts/auto-test.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/nguyenmanh/chatbot-UBND-Xa-xuan-Lang/worker</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/nguyenmanh/.nvm/versions/node/v22.11.0/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Chạy mỗi 30 phút -->
+    <key>StartInterval</key>
+    <integer>1800</integer>
+
+    <!-- Khi máy ngủ -> chạy ngay khi thức dậy -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Không giới hạn thời gian chạy -->
+    <key>AbandonProcessGroup</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/nguyenmanh/chatbot-UBND-Xa-xuan-Lang/worker/test-results/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/nguyenmanh/chatbot-UBND-Xa-xuan-Lang/worker/test-results/launchd.err.log</string>
+</dict>
+</plist>
