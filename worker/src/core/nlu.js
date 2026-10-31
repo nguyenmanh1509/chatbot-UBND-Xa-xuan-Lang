@@ -181,11 +181,20 @@ export function keywordFallbacks(text) {
     // đúng kết quả mong muốn.
     const stripped = stripLeadingGeneric(variant);
 
-    // Thử CHÍNH XÁC chuỗi gốc trước (ưu tiên khớp nhất), rồi mới thử
-    // chuỗi đã bỏ generic, rồi bỏ dần từ cuối.
-    const chain = [variant, stripped];
-    for (const base of chain) {
-      for (let i = base.length; i >= 2; i--) {
+    // THỨ TỰ QUAN TRỌNG:
+    // 1) chuỗi gốc đầy đủ      -> "cấp hộ khẩu" (API trả 0)
+    // 2) chuỗi đã bỏ generic    -> "hộ khẩu"     (API trả 7, ĐÚNG Ý)
+    // 3) rồi mới bỏ dần từ cuối -> "cấp hộ"     (API trả 63, quá rộng)
+    //
+    // Nếu bỏ dần từ cuối TRƯỚC khi bỏ từ generic, ta dừng ở "cấp hộ" và
+    // nhận 63 thủ tục vô nghĩa thay vì 7 thủ tục đúng.
+    const bases = [variant, stripped];
+    for (const base of bases) {
+      const cand = base.join(' ').trim();
+      if (cand) out.push(cand);
+    }
+    for (const base of bases) {
+      for (let i = base.length - 1; i >= 2; i--) {
         const cand = base.slice(0, i).join(' ').trim();
         if (cand) out.push(cand);
       }
