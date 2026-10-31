@@ -81,7 +81,7 @@ r = (j.get('results') or {}).get('facebook') or {}
 print(('✅ ' + r['detail']) if r.get('ok') else ('❌ ' + str(r.get('error'))))
 "
 
-# --- 3. Kiểm tra webhook challenge với Verify Token ---
+# --- 3. Kiểm tra webhook challenge (giống cách Meta gọi) ---
 if [ -n "${FB_VERIFY_TOKEN:-}" ]; then
   echo
   echo "=== Kiểm tra webhook challenge ==="
@@ -89,6 +89,7 @@ if [ -n "${FB_VERIFY_TOKEN:-}" ]; then
     "$WORKER_URL/webhook/facebook?hub.mode=subscribe&hub.verify_token=$FB_VERIFY_TOKEN&hub.challenge=testchal_12345")
   if [ "$CODE" = "200" ] && grep -q "testchal_12345" /tmp/_fb_challenge.txt; then
     echo "✅ Webhook challenge hoạt động (HTTP 200, trả đúng challenge)"
+    echo "   → Bạn có thể điền URL này vào Meta và bấm 'Xác minh và lưu'"
   else
     echo "❌ Webhook challenge lỗi (HTTP $CODE): $(head -c 120 /tmp/_fb_challenge.txt)"
   fi

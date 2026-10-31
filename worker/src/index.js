@@ -90,16 +90,22 @@ async function pushHistory(env, channelKey, userId, role, text) {
 
 async function handleFacebookWebhook(request, env, cfg, ctx) {
   const ch = cfg.channels.facebook;
-  if (!ch.enabled) return new Response('Facebook channel disabled', { status: 403 });
-
   const url = new URL(request.url);
 
   // 1) GET -> Meta xác minh webhook
+  //
+  // LƯU Ý: bước verify KHÔNG yêu cầu ch.enabled = true.
+  // Lý do: phải verify webhook trước rồi mới bật kênh (đúng trình tự Meta yêu cầu),
+  // nếu chặn ở đây sẽ thành vòng tròn: cần token -> cần verify -> cần bật -> cần token.
+  // Chỉ cần có verifyToken là verify được.
   if (request.method === 'GET') {
+    if (!ch.verifyToken) return new Response('Verify token not configured', { status: 403 });
     return fb.handleChallenge(url, ch.verifyToken);
   }
 
-  // 2) POST -> sự kiện
+  // 2) POST -> sự kiện (cần bật kênh)
+  if (!ch.enabled) return new Response('Facebook channel disabled', { status: 403 });
+
   const rawBody = await request.text();
   const okSig = await fb.verifySignature(rawBody, request.headers.get('X-Hub-Signature-256'), ch.appSecret);
   if (!okSig) {

@@ -338,13 +338,63 @@ async function runIntegration() {
       },
     },
   });
+  // Sau khi xoá verifyToken -> GET challenge phải bị từ chối
   const fbOff = await http('/webhook/facebook?hub.mode=subscribe&hub.verify_token=x&hub.challenge=1');
   record(
     'facebook',
-    'kênh đã tắt -> webhook từ chối (403)',
+    'chưa có verifyToken -> webhook challenge từ chối (403)',
     fbOff.status === 403,
     `status=${fbOff.status}`
   );
+
+  // --- Verify token đã đặt nhưng kênh CHƯA bật -> GET challenge vẫn phải trả challenge ---
+  // (đúng trình tự Meta: verify webhook trước, bật kênh sau)
+  await http('/api/admin/config', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${ADMIN_PW}` },
+    body: {
+      config: {
+        channels: {
+          facebook: { enabled: false, verifyToken: 'test-verify-token-abc' },
+        },
+      },
+    },
+  });
+  const fbChallengeWhileOff = await http(
+    '/webhook/facebook?hub.mode=subscribe&hub.verify_token=test-verify-token-abc&hub.challenge=chal_999'
+  );
+  record(
+    'facebook',
+    'kênh chưa bật nhưng có verifyToken -> challenge vẫn trả về (để verify trước)',
+    fbChallengeWhileOff.status === 200 && fbChallengeWhileOff.text.includes('chal_999'),
+    `status=${fbChallengeWhileOff.status} body=${fbChallengeWhileOff.text.slice(0, 60)}`
+  );
+
+  // --- POST sự kiện khi kênh chưa bật -> phải từ chối 403 ---
+  const fbPostWhileOff = await http('/webhook/facebook', {
+    method: 'POST',
+    headers: { 'X-Hub-Signature-256': 'sha256=bad' },
+    body: { object: 'page', entry: [] },
+  });
+  record(
+    'facebook',
+    'kênh chưa bật -> POST sự kiện bị từ chối (403)',
+    fbPostWhileOff.status === 403,
+    `status=${fbPostWhileOff.status}`
+  );
+
+  // --- Dọn dẹp: xoá hết verifyToken ---
+  await http('/api/admin/config', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${ADMIN_PW}` },
+    body: {
+      config: {
+        channels: {
+          facebook: { enabled: false, appSecret: '', pageId: '', verifyToken: '', pageAccessToken: '' },
+        },
+      },
+    },
+  });
 }
 
 /* ------------------------------------------------------------------ */
