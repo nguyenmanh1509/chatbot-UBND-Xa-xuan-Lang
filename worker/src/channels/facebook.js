@@ -4,12 +4,12 @@
  * Luồng:
  *   1. Meta GET /webhook?hub.challenge=...  -> trả hub.challenge để xác minh
  *   2. Meta POST /webhook                 -> sự kiện messages, verify X-Hub-Signature-256
- *   3. Gửi trả lời: POST /v21.0/{PAGE_ID}/messages?access_token=...
+ *   3. Gửi trả lời: POST /v26.0/{PAGE_ID}/messages?access_token=...
  *
  * Ghi chú chi phí: gửi tin trong cửa sổ 24h sau khi người dùng nhắn là MIỄN PHÍ.
  */
 
-const API_VERSION = 'v21.0';
+const API_VERSION = 'v26.0';
 
 /** So sánh chuỗi hằng số thời gian (tránh timing attack). */
 function timingSafeEqual(a, b) {

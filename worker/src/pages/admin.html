@@ -38,6 +38,18 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .sticky{position:sticky;bottom:0;background:#f8fafc;padding:14px 0;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:14px}
 code{background:#e2e8f0;padding:2px 6px;border-radius:4px;font-size:12px}
 ul.tips{margin:8px 0 0;padding-left:20px;font-size:12px;color:#64748b;line-height:1.7}
+details.guide{margin-top:14px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;overflow:hidden}
+details.guide>summary{padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:#1e40af;user-select:none;list-style:none}
+details.guide>summary::-webkit-details-marker{display:none}
+details.guide>summary::before{content:"▸ ";display:inline-block;transition:transform .15s}
+details.guide[open]>summary::before{content:"▾ "}
+details.guide>summary:hover{background:#eef2ff}
+ol.guide-steps{margin:0;padding:6px 20px 16px 34px;font-size:12.5px;color:#334155;line-height:1.75}
+ol.guide-steps li{margin-bottom:10px}
+ol.guide-steps a{color:#1d4ed8}
+ol.guide-steps b{color:#0f172a}
+ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
+.p{font-size:12px}
 </style>
 </head>
 <body>
@@ -78,22 +90,22 @@ ul.tips{margin:8px 0 0;padding-left:20px;font-size:12px;color:#64748b;line-heigh
           <div>
             <label>Page ID</label>
             <input id="fb.pageId" placeholder="1234567890">
-            <p class="hint">Page → Settings → Account → Page ID</p>
+            <p class="hint">Bước 2 — Trong trang Facebook của Page: <b>Cài đặt</b> → <b>Account details</b> → copy <b>Page ID</b>. Hoặc vào <b>Meta for Developers</b> → app của bạn → <b>Messenger → Settings</b> → <b>Page ID</b>.</p>
           </div>
           <div>
             <label>Page Access Token</label>
             <input id="fb.pageAccessToken" type="password" placeholder="EAA...">
-            <p class="hint">Page → Settings → Developer → Generate token (cần quyền pages_messaging)</p>
+            <p class="hint">Bước 4 — <b>Meta for Developers</b> → app của bạn → <b>Messenger → Settings</b> → <b>Access Token</b> → Generate token. Bắt buộc chọn đúng Page của UBND.</p>
           </div>
           <div>
             <label>Verify Token</label>
             <input id="fb.verifyToken" placeholder="chuỗi bất kỳ tự đặt">
-            <p class="hint">Tự đặt. Dùng để Meta xác minh webhook.</p>
+            <p class="hint">Bước 5 — <b>Tự đặt</b>, vd <code>xuanlang_verify_2026</code>. Dùng chính chuỗi này điền vào ô "Verify Token" bên Meta.</p>
           </div>
           <div>
             <label>App Secret</label>
             <input id="fb.appSecret" type="password">
-            <p class="hint">Dùng kiểm tra chữ ký webhook. Nên có để chống giả mạo.</p>
+            <p class="hint">Bước 3 — <b>Meta for Developers</b> → app của bạn → <b>App settings → Basic</b> → copy <b>App Secret</b>. Dùng kiểm tra chữ ký webhook (chống giả mạo).</p>
           </div>
         </div>
         <div class="row">
@@ -105,6 +117,49 @@ ul.tips{margin:8px 0 0;padding-left:20px;font-size:12px;color:#64748b;line-heigh
           <li>Subscribe vào trường <code>messages</code> của đối tượng Page</li>
           <li>Quyền cần cấp: <code>pages_messaging</code>, <code>pages_show_list</code>, <code>pages_manage_metadata</code></li>
         </ul>
+
+        <details class="guide">
+          <summary>📖 Hướng dẫn đầy đủ 7 bước (mở ra khi cần)</summary>
+          <ol class="guide-steps">
+            <li>
+              <b>Tạo app</b> — Vào <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener">developers.facebook.com/apps</a>
+              → <b>Create app</b> → chọn loại <b>Business</b> → điền tên (vd "UBND Xuân Lãng Chatbot")
+              → chọn Business account của UBND → <b>Create app</b>.
+            </li>
+            <li>
+              <b>Thêm sản phẩm Messenger</b> — Trong app, bấm <b>Add product</b> → tìm <b>Messenger</b> → <b>Set up</b>.
+              Ở màn hình này sẽ thấy <b>Page ID</b> ở khung bên phải (chọn Page của UBND ở dropdown).
+            </li>
+            <li>
+              <b>Lấy App Secret</b> — Menu trái: <b>App settings → Basic</b> → mục <b>App secret</b> → bấm <b>Show</b> → copy.
+            </li>
+            <li>
+              <b>Tạo Page Access Token</b> — Menu trái: <b>Messenger → Settings</b> → phần <b>Access Token</b> → bấm <b>Generate token</b>
+              → chọn đúng Page → <b>Next</b> → chọn quyền: <b>pages_messaging</b>, <b>pages_show_list</b>, <b>pages_manage_metadata</b> → <b>Next</b> → <b>Done</b> → copy token bắt đầu bằng <code>EAA...</code>.
+              <br><span class="hint">⚠️ Token này <b>có hạn</b>. Nếu hết hạn, quay lại đây bấm Generate token lại rồi lưu lại vào Admin.</span>
+            </li>
+            <li>
+              <b>Điền 4 trường ở trên</b> — điền vào Admin panel rồi bấm <b>Lưu cấu hình</b>.
+              Đặt <b>Verify Token</b> là chuỗi tự chọn, ví dụ <code>xuanlang_verify_2026</code>.
+            </li>
+            <li>
+              <b>Đăng ký Webhook</b> — Menu trái: <b>Messenger → Settings</b> → mục <b>Webhooks</b> → bấm <b>Edit</b> (hoặc Add).
+              <br>• <b>Callback URL</b>: dán URL ở mục "Webhook callback URL" phía trên (bấm vào để copy).
+              <br>• <b>Verify Token</b>: dán đúng chuỗi bạn vừa đặt ở bước 5.
+              <br>• Bấm <b>Verify and Save</b> → Meta gọi URL của bạn, nếu đúng sẽ hiện "Success".
+              <br>• <b>Subscribe fields</b>: tick <b>messages</b> → <b>Subscribe</b>.
+            </li>
+            <li>
+              <b>Bật kênh &amp; kiểm thử</b> — Tick ô <b>Bật kênh Facebook</b> → <b>Lưu cấu hình</b> →
+              bấm <b>Kiểm tra kết nối</b> (phải báo "Đã kết nối tới Page: …").
+              <br>Sau đó mở trang Facebook của UBND, bấm nút <b>Messenger</b> → gõ <code>hộ khẩu</code> hoặc <code>kết hôn</code> → bot phải trả lời.
+            </li>
+          </ol>
+          <p class="hint">
+            Lưu ý: Webhook của Meta chỉ nhận được sau khi Page ở trạng thái <b>Published</b> (Settings → General → Publish Page),
+            và trong giai đoạn phát triển bạn có thể chỉ cần Page do chính bạn quản lý.
+          </p>
+        </details>
       </div>
 
       <div class="card">
@@ -159,7 +214,7 @@ ul.tips{margin:8px 0 0;padding-left:20px;font-size:12px;color:#64748b;line-heigh
           <div id="res-zalo-oa" class="msg hidden"></div>
         </div>
         <ul class="tips">
-          <new_string>          <li>Webhook URL: <code class="wh" data-path="/webhook/zalo-oa"></code></li>
+          <li>Webhook URL: <code class="wh" data-path="/webhook/zalo-oa"></code></li>
           <li>Tin tư vấn trong 48h sau khi người dùng nhắn là <b>miễn phí</b>; ngoài 48h tính 55đ/tin</li>
           <li>Worker tự làm mới access token hằng ngày — không cần thao tác tay</li>
         </ul>

@@ -350,7 +350,7 @@ async function handleAdminApi(request, env, cfg, pathname) {
       } else {
         try {
           const res = await fetch(
-            `https://graph.facebook.com/v21.0/${ch.pageId}?access_token=${encodeURIComponent(ch.pageAccessToken)}`
+            `https://graph.facebook.com/v26.0/${ch.pageId}?access_token=${encodeURIComponent(ch.pageAccessToken)}`
           );
           const j = await res.json();
           results.facebook = res.ok && j.id
