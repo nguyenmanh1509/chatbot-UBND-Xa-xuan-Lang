@@ -148,7 +148,11 @@ async function handleFacebookWebhook(request, env, cfg, ctx) {
             ai,
             cfg,
             text: inputText,
-            channel: { id: 'facebook', aiEnabled: ch.aiEnabled },
+            channel: {
+              id: 'facebook',
+              aiEnabled: ch.aiEnabled,
+              greeting: ch.greeting,
+            },
             history,
           });
           await fb.sendMessages(ch, ev.senderId, r.messages, r.quickReplies || []);

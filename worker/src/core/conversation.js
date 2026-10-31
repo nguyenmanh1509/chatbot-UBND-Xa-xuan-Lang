@@ -61,6 +61,24 @@ export async function handleMessage({ dvc, ai, cfg, text, channel, history = [] 
   }
 
   const intent = parseIntent(input);
+
+  // Lời chào ("hi", "chào", "bắt đầu") -> chào lại + hướng dẫn.
+  //
+  // VÌ SAO CẦN: nếu không xử lý riêng, bot đi tìm thủ tục với từ "hi"
+  // -> không ra kết quả -> trả "chưa tìm thấy thủ tục". Người dùng mới
+  // mở chatbot thấy ngay thông báo lỗi, rất kém chuyên nghiệp.
+  if (intent.type === 'greeting') {
+    // Ưu tiên lời chào riêng của kênh (admin tự chỉnh trong trang quản trị),
+    // nếu không có thì dùng lời chào chung của hệ thống.
+    const greeting = channel?.greeting?.trim() || cfg.greeting;
+    return {
+      messages: [greeting],
+      // Gợi ý nút bấm nhanh cho người dùng mới bắt đầu.
+      quickReplies: buildGreetingQuickReplies(),
+      meta,
+    };
+  }
+
   // Lệnh trợ giúp
   if (intent.type === 'command' && intent.command === 'help') {
     return {
@@ -237,6 +255,27 @@ export function buildQuickReplies(ctx) {
     if (out.length >= 13) break;
   }
   return out;
+}
+
+/**
+ * Nút bấm nhanh gợi ý khi người dùng mở chatbot / gửi lời chào.
+ *
+ * Payload = từ khoá tra cứu. Khi bấm, Messenger gửi payload -> bot tìm
+ * thủ tục theo từ khoá đó -> trả danh sách kèm nút bấm mã thủ tục.
+ *
+ * Chọn các thủ tục phổ biến nhất ở xã (hộ khẩu, kết hôn, CMND, chứng
+ * thư, đất đai, sinh con...).
+ */
+export function buildGreetingQuickReplies() {
+  return [
+    { title: 'Hộ khẩu', payload: 'hộ khẩu' },
+    { title: 'Kết hôn', payload: 'kết hôn' },
+    { title: 'Chứng minh nhân dân', payload: 'chứng minh nhân dân' },
+    { title: 'Chứng thư', payload: 'chứng thư' },
+    { title: 'Sinh con', payload: 'sinh con' },
+    { title: 'Đất đai', payload: 'đất đai' },
+    { title: 'Bảo hiểm xã hội', payload: 'bảo hiểm xã hội' },
+  ];
 }
 
 /** Kiểm tra câu hỏi có liên quan tới thủ tục hành chính không (lọc rác). */

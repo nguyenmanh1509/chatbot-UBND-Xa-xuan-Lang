@@ -10,8 +10,13 @@ export function defaultConfig() {
   return {
     siteName: 'Trợ lý tra cứu thủ tục hành chính UBND xã Xuân Lãng',
     greeting:
-      'Xin chào! Em là trợ lý tra cứu thủ tục hành chính của UBND xã Xuân Lãng, tỉnh Phú Thọ.\n' +
-      'Anh/chị có thể hỏi em bằng câu tự nhiên, ví dụ: "cần hồ sơ gì để đăng ký kết hôn tại xã Xuân Lãng?"',
+      'Xin chào anh/chị! 👋\n' +
+      'Em là trợ lý tra cứu thủ tục hành chính của UBND xã Xuân Lãng, tỉnh Phú Thọ.\n\n' +
+      'Anh/chị có thể hỏi em bằng câu tự nhiên, ví dụ:\n' +
+      '• "Cần hồ sơ gì để đăng ký kết hôn?"\n' +
+      '• "Thủ tục cấp hộ khẩu tại xã Xuân Lãng"\n' +
+      '• "Mã 1.000894" (tra cứu chi tiết theo mã thủ tục)\n\n' +
+      'Bên dưới em có gợi ý một số thủ tục phổ biến, anh/chị bấm vào là em tra cứu ngay ạ.',
     fallbackMessage:
       'Em chưa tìm thấy thủ tục phù hợp. Anh/chị vui lòng liên hệ trực tiếp UBND xã Xuân Lãng để được hỗ trợ.',
     errorMessage: 'Xin lỗi, hệ thống đang bận. Anh/chị vui lòng thử lại sau ít phút.',

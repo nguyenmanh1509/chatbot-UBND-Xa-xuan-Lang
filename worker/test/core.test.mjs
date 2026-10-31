@@ -99,6 +99,22 @@ section('NLU — hồi quy lỗi tìm kiếm');
   check('looksLikeCode mã nhiều nhóm', looksLikeCode('1.005.123'));
 }
 
+section('NLU — nhận diện lời chào');
+{
+  // LỖI: người dùng gõ "hi" / bấm nút "Bắt đầu" -> bot đi tìm thủ tục
+  // -> trả "chưa tìm thấy thủ tục" thay vì chào hỏi.
+  for (const g of ['hi', 'Hi', 'hello', 'xin chào', 'chào', 'chào bạn', 'chào anh/chị', 'xin chào anh chị', 'bắt đầu', 'Bắt đầu', 'start', 'Get Started', 'ok', 'hello!']) {
+    check(`"${g}" -> greeting`, parseIntent(g).type === 'greeting', parseIntent(g).type);
+  }
+  // Câu hỏi thật KHÔNG được coi là lời chào.
+  check('"đăng ký kết hôn" -> question', parseIntent('đăng ký kết hôn').type === 'question');
+  check('"hộ khẩu" -> question', parseIntent('hộ khẩu').type === 'question');
+  check(
+    'câu dài có "chào" vẫn là question',
+    parseIntent('hello bạn, cho tôi hỏi về đăng ký kết hôn').type === 'question'
+  );
+}
+
 section('DVC — gọi API thật');
 {
   const h = await dvc.health();

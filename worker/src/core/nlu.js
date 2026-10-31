@@ -263,6 +263,39 @@ export function isGenericKeyword(text) {
   return tokens.every((t) => GENERIC_KEYWORDS.has(t));
 }
 
+/**
+ * Các lời chào / lệnh bắt đầu mà người dùng hay gõ (hoặc bấm nút
+ * "Bắt đầu" / "Get Started" của Messenger).
+ *
+ * VÌ SAO CẦN:
+ * Nếu không nhận diện, bot coi "hi" là câu hỏi tra cứu thủ tục -> tìm
+ * không ra -> trả "chưa tìm thấy thủ tục". Người dùng mới mở chatbot
+ * thấy ngay thông báo lỗi thay vì lời chào hướng dẫn.
+ */
+const GREETING_PATTERNS = [
+  // Lời chào cơ bản (so khớp cả bản có dấu và bản đã bỏ dấu)
+  /^(hi|hello|hey|hiya|yo|ok|okay|good\s*(morning|afternoon|evening|day)|goodmorning|goodafternoon)$/i,
+  /^(chao|chao ban|chao a|chao chi|chao anh|chao em|chao co|chao ong|chao ba|chao mo|chao anh chi|xin chao|chao anh\/chi|xin chao anh chi)$/i,
+  // "Bắt đầu" - nút Get Started của Messenger
+  /^(bat dau|batdau|start|get started|go|begin|khai bao)$/i,
+];
+
+/**
+ * Câu hỏi có phải lời chào không?
+ *
+ * CHỈ nhận diện khi câu NGẮN (vài từ). Câu dài kiểu "chào bạn, cho tôi
+ * hỏi về đăng ký kết hôn" là câu hỏi thật, không phải lời chào.
+ */
+export function isGreeting(text) {
+  const t = String(text || '').trim();
+  if (!t) return false;
+  if (t.split(/\s+/).length > 5) return false;
+  const plain = t.replace(/[!?.]+$/g, '').trim();
+  // Bỏ dấu để so khớp: "chào" -> "chao", "xin chào" -> "xin chao".
+  const noAccent = stripVN(plain);
+  return GREETING_PATTERNS.some((re) => re.test(plain) || re.test(noAccent));
+}
+
 /** Tách câu hỏi thành các thông tin có cấu trúc (cho AI). */
 export function parseIntent(text) {
   const t = String(text || '').trim();
@@ -286,6 +319,10 @@ export function parseIntent(text) {
   }
   if (looksLikeCode(t)) {
     return { type: 'procedure-code', code: t.trim() };
+  }
+  // Lời chào -> trả lời chào, KHÔNG đi tìm thủ tục.
+  if (isGreeting(t)) {
+    return { type: 'greeting' };
   }
   return { type: 'question', text: t };
 }

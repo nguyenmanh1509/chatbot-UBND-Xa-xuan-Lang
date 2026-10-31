@@ -88,6 +88,46 @@ section('Trích xuất sự kiện message');
     entry: [{ messaging: [{ sender: { id: 'U' }, message: { mid: 'm', attachments: [] } }] }],
   });
   check('tin chỉ có ảnh -> bỏ qua', attachmentOnly.length === 0);
+
+  // Nút "Bắt đầu" (Get Started) của Messenger gửi postback, KHÔNG có
+  // message.text. Nếu không bắt, bot im lặng khi người dùng mở chatbot.
+  const postbackPayload = {
+    object: 'page',
+    entry: [
+      {
+        messaging: [
+          {
+            sender: { id: 'USER3' },
+            postback: { payload: 'GET_STARTED', title: 'Bắt đầu' },
+            mid: 'mb1',
+          },
+        ],
+      },
+    ],
+  };
+  const pb = extractMessages(postbackPayload);
+  check('bắt được postback', pb.length === 1, String(pb.length));
+  check('postback đánh dấu isPostback', pb[0]?.isPostback === true);
+  check('postback giữ senderId', pb[0]?.senderId === 'USER3');
+  check('postback có text để bot nhận lời chào', pb[0]?.text === 'bắt đầu', pb[0]?.text);
+  check('postback giữ payload gốc', pb[0]?.postbackPayload === 'GET_STARTED');
+
+  // Quick reply -> payload chứa mã thủ tục.
+  const qrPayload = {
+    object: 'page',
+    entry: [
+      {
+        messaging: [
+          {
+            sender: { id: 'USER4' },
+            message: { mid: 'm4', text: '1.000894', quick_reply: { payload: '1.000894' } },
+          },
+        ],
+      },
+    ],
+  };
+  const qr = extractMessages(qrPayload);
+  check('bắt quick reply payload', qr[0]?.quickReplyPayload === '1.000894', String(qr[0]?.quickReplyPayload));
 }
 
 console.log(`\n${'='.repeat(46)}`);

@@ -123,11 +123,34 @@ export async function sendMessages(cfg, recipientId, messages, quickReplies = []
   return sent;
 }
 
-/** Trích xuất sự kiện message từ payload webhook. */
+/**
+ * Trích xuất sự kiện message từ payload webhook.
+ *
+ * Xử lý 2 loại sự kiện:
+ * 1. `messaging.message` — tin nhắn thường (kèm quick_reply payload).
+ * 2. `messaging.postback` — người dùng bấm nút "Bắt đầu" (Get Started)
+ *    của Messenger. Sự kiện này KHÔNG có `message.text`, nếu không xử lý
+ *    thì bot im lặng, người dùng tưởng bot chết.
+ */
 export function extractMessages(payload) {
   const out = [];
   for (const entry of payload.entry || []) {
     for (const messaging of entry.messaging || []) {
+      // 1) Nút "Bắt đầu" / Get Started
+      if (messaging.postback) {
+        const payloadVal = messaging.postback.payload || '';
+        out.push({
+          senderId: messaging.sender?.id,
+          text: 'bắt đầu',
+          messageId: messaging.message?.mid || messaging.postback?.mid || null,
+          isEcho: false,
+          quickReplyPayload: null,
+          isPostback: true,
+          postbackPayload: payloadVal,
+        });
+        continue;
+      }
+
       if (messaging.message?.text) {
         out.push({
           senderId: messaging.sender?.id,
@@ -137,6 +160,7 @@ export function extractMessages(payload) {
           // Người dùng bấm quick reply -> Messenger gửi payload (mã thủ tục)
           // kèm text hiển thị. Ưu tiên payload vì đó là mã chính xác.
           quickReplyPayload: messaging.message.quick_reply?.payload || null,
+          isPostback: false,
         });
       }
     }
