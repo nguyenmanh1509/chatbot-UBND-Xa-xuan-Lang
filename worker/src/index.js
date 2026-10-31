@@ -575,9 +575,19 @@ async function handleAdminApi(request, env, cfg, pathname) {
         ai,
         cfg,
         text,
-        channel: { id: 'simulate', aiEnabled: body.aiEnabled !== false },
+        channel: {
+          id: 'simulate',
+          aiEnabled: body.aiEnabled !== false,
+          greeting: cfg.channels?.facebook?.greeting,
+        },
       });
-      return ok({ messages: r.messages, engine: r.meta.engine, scope: r.meta.scope });
+      return ok({
+        messages: r.messages,
+        quickReplies: r.quickReplies || [],
+        engine: r.meta.engine,
+        scope: r.meta.scope,
+        kind: r.meta.kind,
+      });
     } catch (err) {
       return fail(String(err?.message || err), 500);
     }
