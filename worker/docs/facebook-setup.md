@@ -41,51 +41,82 @@ Tổng thể có 4 giá trị cần lấy. Bảng bên dưới tóm tắt, phầ
 
 ## BƯỚC 3 — Lấy Page ID (giá trị #1)
 
-**Màn hình Messenger Settings** có 2 cột:
+**Màn hình Messenger Settings** có 3 cột:
 
-- Cột **giữa**: danh sách "Connect your Page" + Access Token
-- Cột **phải**: khung **Page Access** hiển thị:
-  ```
-  Page ID      123456789012345
-  Page Name    UBND xã Xuân Lãng
-  ```
+- Cột **trái**: menu (Messenger, App settings, Events...)
+- Cột **giữa**: danh sách Page đã kết nối + Access Token
+- Cột **phải**: khung **Page Access** hiển thị thông tin Page
 
-**Cách 1 (nhanh):** copy số ở ô **Page ID** trong khung bên phải.
+**Cách 1 (nhanh nhất):** trong cột **giữa**, phần **2. Tạo mã truy cập** (tiếng Anh: *Access Tokens*),
+ngay cạnh tên Page của bạn sẽ hiện **ID Trang** (dãy số) → copy.
 
 **Cách 2 (dự phòng):** vào trang Facebook của Page → **Cài đặt** (Settings) → **Account details** → mục **Page ID**.
 
-> ⚠️ Nếu khung bên phải trống hoặc không thấy Page của UBND, nghĩa là tài khoản đang đăng nhập **không quản lý Page đó**. Cần đổi sang đúng tài khoản, hoặc nhờ người có quyền quản trị Page thêm bạn vào.
+**Cách 3 (dùng khi không tìm thấy UI):** dán vào trình duyệt, nhấn Enter — sẽ ra JSON chứa đúng Page ID:
+
+```
+https://graph.facebook.com/v26.0/me/accounts?access_token=TOKEN_CUA_BAN
+```
+
+> ⚠️ Nếu không thấy Page của UBND trong danh sách, nghĩa là tài khoản đang đăng nhập **không quản lý Page đó**.
+> Cần đổi sang đúng tài khoản, hoặc nhờ người có quyền quản trị Page thêm bạn vào.
+> Xem mục **B. Không thấy Page của UBND trong danh sách** ở phần dưới.
 
 ---
 
 ## BƯỚC 4 — Lấy App Secret (giá trị #2)
 
-1. Menu trái → **App settings** → tab **Basic**
-2. Cuộn xuống mục **App secret** → bấm nút **Show**
+1. Menu trái → **Cài đặt ứng dụng** (tiếng Anh: *App settings*) → tab **Cơ bản** (Basic)
+2. Cuối trang, mục **App secret** → bấm nút **Hiển thị** (Show)
 3. Copy chuỗi (dạng `1234567890abcdef...`)
 
 > App Secret dùng để xác minh chữ ký webhook — nhờ vậy không ai giả mạo được Page của bạn.
+>
+> 📌 Menu trái phải **cuộn xuống hết** mới thấy "Cài đặt ứng dụng" — nó nằm ở cuối menu.
 
 ---
 
 ## BƯỚC 5 — Tạo Page Access Token (giá trị #3)
 
-Vẫn ở trang **Messenger → Settings**, cột giữa:
+Vẫn ở trang **Messenger → Cài đặt API Messenger**, cột giữa, mục **2. Tạo mã truy cập**:
 
-1. Tới phần **Access Token**
-2. Bấm **Add or Remove Pages** (một số giao diện ghi là **Connect**)
-3. Một cửa sổ Facebook mở ra → đăng nhập (nếu cần) → chọn **đúng Page của UBND** → **Next**
-4. Ở bước chọn quyền, tick:
+1. Bấm **Thêm hoặc xóa Trang** (tiếng Anh: *Add or Remove Pages*) hoặc **Kết nối** (Connect)
+2. Một cửa sổ Facebook mở ra → đăng nhập (nếu cần) → chọn **đúng Page của UBND**
+3. **Quan trọng:** đảm bảo cột trái của Page đó hiện **"Quản lý và truy cập cuộc trò chuyện Trang trong Messenger" = Có**
+   (tiếng Anh: *Manage and access Page conversations in Messenger* = Yes)
+   — nếu là Không thì bật lên, nếu không sẽ không nhận được tin nhắn
+4. **Tiếp theo** → chọn quyền, tick:
    - ✅ `pages_messaging`
    - ✅ `pages_show_list`
    - ✅ `pages_manage_metadata`
-5. **Next** → **Done**
-6. Quay lại trang Messenger Settings, phần **Access Token** sẽ hiện token của Page vừa thêm
-   → bấm **Copy** (hoặc bấm **Generate token** nếu chưa có)
+   - ✅ `pages_read_engagement`
+5. **Tiếp theo** → **Hoàn tất** (Done)
+6. Quay lại trang Messenger Settings, mục **2. Tạo mã truy cập** sẽ hiện token của Page vừa thêm
+   → bấm **Sao chép** (Copy), hoặc bấm **Tạo mã** (Generate Token) nếu chưa có
 
 Token có dạng `EAAabc...` rất dài.
 
-> ⚠️ **Token này có hạn** (thường ~60 ngày). Hết hạn thì quay lại đúng chỗ này bấm **Generate token** lại rồi gửi tôi token mới.
+> ⚠️ **Token này có hạn** (thường ~60 ngày, có bản chỉ sống 1–2 giờ). Hết hạn thì quay lại đúng chỗ này bấm **Tạo mã** lại rồi gửi tôi token mới.
+>
+> **Token không hết hạn (nên dùng cho production):** tạo **System User** trong Business Manager → gán app với quyền **Quản lý ứng dụng** (Manage App) → lấy token từ System User đó và chọn thời hạn **Never**. Cách này nên làm sau khi mọi thứ chạy ổn định.
+
+### Cách kiểm tra token có dùng được không
+
+Dán vào trình duyệt, nhấn Enter:
+
+```
+https://graph.facebook.com/v26.0/me?access_token=TOKEN_CUA_BAN
+```
+
+Nếu nhận được:
+```json
+{"name":"UBND xã Xuân Lãng","id":"123456789012345"}
+```
+→ token hợp lệ ✅
+
+Nếu nhận `{"error":{"message":"Invalid OAuth access token"...}}` → token sai/hết hạn ❌
+
+**Xem quyền của token:** https://developers.facebook.com/tools/debug/accesstoken/
 
 ---
 
@@ -107,22 +138,36 @@ Quy tắc: chỉ dùng chữ cái, số, gạch dưới. Không có dấu cách.
 
 ## BƯỚC 7 — Đăng ký Webhook (sau khi đã lưu cấu hình)
 
-Vẫn ở **Messenger → Settings**, cuộn xuống mục **Webhooks** → bấm **Edit** (hoặc **Add**):
+Vẫn ở **Messenger → Cài đặt API Messenger**, cuộn lên mục **1. Đặt cấu hình webhook**
+(tiếng Anh: *Set up Webhooks*):
 
-| Ô trên Meta | Điền gì |
-|--------------|---------|
-| **Callback URL** | `https://ubnd-xuanlang-bot.nguyenmanh15092003.workers.dev/webhook/facebook` |
-| **Verify Token** | chuỗi bạn tự đặt ở bước 6 |
+| Ô trên Meta (tiếng Việt) | Ô trên Meta (tiếng Anh) | Điền gì |
+|---------------------------|-------------------------|---------|
+| **URL gọi lại** | Callback URL | `https://ubnd-xuanlang-bot.nguyenmanh15092003.workers.dev/webhook/facebook` |
+| **Xác minh mã** | Verify Token | chuỗi bạn tự đặt ở bước 6 |
 
-→ Bấm **Verify and Save**
+→ Bấm **Xác minh và lưu** (Verify and Save)
 → Meta hiện **"Success"** nếu đúng
 
-Tiếp theo ở mục **Subscribe Fields**:
-→ Tick **`messages`** → bấm **Subscribe**
+> ⚠️ Mục webhook có thể đang trống (mới tạo app) — đó là bình thường, điền vào rồi bấm.
+>
+> 📌 **ID ứng dụng** (ví dụ `1278081518169863`) là **App ID** — dùng cho OAuth/Web Login,
+> **không phải Page ID**. Đừng điền nhầm vào ô Page ID.
+
+**Nếu bấm "Xác minh và lưu" báo lỗi:**
+1. **URL gọi lại** phải gõ đúng từng ký tự — copy từ Admin panel (bấm vào ô màu xám để copy),
+   không thêm dấu `/` ở cuối, không thiếu `https://`
+2. **Xác minh mã** phải **giống hệt** chuỗi đã đặt trong Admin panel
+3. Kiểm tra bằng cách mở tab Ẩn danh (Incognito), dán URL vào — phải trả về HTTP 200
+
+Tiếp theo ở mục **Đăng ký các trường** (Subscribe Fields):
+→ Tick **`messages`** → bấm **Đăng ký** (Subscribe)
 
 ---
 
-## BƯỚC 8 — Publish Page (bắt buộc)
+## BƯỚC 8 — Publish Page + chuyển app sang Chế độ Chính thức (bắt buộc)
+
+### 8a. Publish Page
 
 Webhook chỉ hoạt động khi Page ở trạng thái **Published**:
 
@@ -132,6 +177,25 @@ Webhook chỉ hoạt động khi Page ở trạng thái **Published**:
 4. Bấm **Publish Page**
 
 > Nếu Page của UBND chưa muốn công khai, bạn vẫn có thể test: chỉ cần bạn (hoặc một tài khoản quản trị Page) nhắn vào Messenger của Page là bot sẽ trả lời.
+
+### 8b. Chuyển app sang Chế độ Chính thức (Live)
+
+Trên cùng của App Dashboard sẽ thấy:
+
+```
+Chế độ của ứng dụng:  [ Phát triển ]   ← công tắc đang ở trạng thái Tắt
+```
+
+| Chế độ | Ai nhắn được với bot |
+|--------|---------------------|
+| **Phát triển** (Development) | Chỉ người có vai trò trong app: quản trị viên / nhà phát triển / người kiểm thử. Người ngoài nhắn vào **không có gì trả lời**. |
+| **Chính thức** (Live) | **Mọi người** nhắn vào Page đều được bot trả lời. |
+
+**Để phục vụ người dân:** gạt công tắc sang **Chính thức** (Live).
+
+> Với bot chỉ dùng 3 quyền cơ bản (`pages_messaging`, `pages_show_list`, `pages_manage_metadata`),
+> Meta thường cho chuyển Live ngay mà không cần App Review.
+> Nếu Meta yêu cầu App Review, làm theo hướng dẫn ở menu trái **Xét duyệt ứng dụng** (App Review).
 
 ---
 
@@ -158,12 +222,69 @@ Webhook chỉ hoạt động khi Page ở trạng thái **Published**:
 
 ---
 
+## Không tìm thấy gì cả? — Đọc mục này
+
+### A. Không thấy nút "Messenger" trong menu trái
+
+→ Bạn **chưa Add product**. Quay lại trang chủ App Dashboard → cuộn xuống **Add products to your app** → ô **Messenger** → **Set up**.
+
+### B. Không thấy Page của UBND trong danh sách
+
+→ **Nguyên nhân #1: tài khoản đăng nhập không quản lý Page đó.**
+
+Cách kiểm tra nhanh: mở trực tiếp `https://www.facebook.com/your-page-username/settings`
+- Nếu bị báo lỗi / không có quyền → bạn sai tài khoản.
+- Nếu vào được → bạn đúng tài khoản, xem tiếp mục C.
+
+Cách khắc phục:
+- **Đổi tài khoản**: bấm avatar góc trên bên phải trong Meta for Developers → **Switch accounts** → chọn đúng tài khoản quản lý Page.
+- **Nhờ thêm quyền**: vào Page → **Cài đặt** → **Quyền quản lý** (Page access) → thêm tài khoản của bạn với vai trò **Admin** (hoặc ít nhất **Content** + truy cập Messenger).
+- **Chưa có Page?** Nếu UBND chưa tạo Page: vào trang cá nhân → **Tạo Trang** (Create Page) → đặt tên "UBND xã Xuân Lãng" → chọn danh mục "Chính phủ & Cộng đồng" → tạo.
+
+### C. Thấy Page nhưng nút "Generate Token" bị mờ / không hiện
+
+→ App chưa có quyền truy cập Page. Bấm **Add or Remove Pages** trước, chọn Page, thực hiện flow cấp quyền → quay lại sẽ có nút Generate Token.
+
+### D. Không thấy mục "App Secret"
+
+→ Bạn đang ở tab khác của **App settings**. **App Secret** nằm ở tab **Basic**, cuộn xuống cuối trang.
+
+### E. Không tìm thấy menu "App settings"
+
+→ Menu trái phải **cuộn xuống hết** — "App settings" nằm ở **cuối menu trái**, dưới các sản phẩm khác. Đừng nhìn ở giữa.
+
+### F. Trang trắng / lỗi khi mở developers.facebook.com
+
+→ Thử bật VPN hoặc đổi trình duyệt. Meta for Developers đôi khi bị chặn ở một số mạng Việt Nam.
+
+### G. Bấm "Verify and Save" báo lỗi
+
+→ Kiểm tra 3 thứ:
+1. **Callback URL** phải gõ tay, copy từ Admin panel (bấm vào ô màu xám để copy)
+2. **Verify Token** phải **giống hệt** chuỗi đã đặt trong Admin panel
+3. URL phải bắt đầu bằng `https://` và phải truy cập được từ Internet (kiểm tra bằng cách mở Incognito)
+
+---
+
 ## Lỗi thường gặp
 
 | Lỗi | Nguyên nhân | Cách sửa |
 |-----|-------------|-----------|
 | Không thấy Page trong dropdown | Tài khoản đăng nhập không quản lý Page | Đổi tài khoản, hoặc nhờ admin Page thêm bạn |
-| `Invalid OAuth access token` | Token sai/hết hạn/nhầm User Token | Generate token lại, đảm bảo chọn đúng Page |
+| `Invalid OAuth access token` | Token sai/hết hạn/nhầm User Token | Generate Token lại, đảm bảo chọn đúng Page |
 | `#200` khi Meta verify | Verify Token 2 bên không khớp | So sánh kỹ từng ký tự |
 | Webhook không nhận tin | Page chưa Publish, hoặc chưa tick `messages` | Publish Page + Subscribe `messages` |
 | `(#200) Page Is Not Available` | Page bị ẩn/xóa hoặc app chưa ở trạng thái Live | Publish Page; app ở Development chỉ nhận từ người có role |
+| Bot không nhận tin dù webhook OK | "Manage and access Page conversations" để No | Bật lên Yes trong Messenger Settings |
+| Bot trả lời rồi mất sau 24h | Hết cửa sổ 24h của Messenger | Chuẩn bị trước cho tình huống này (xem mục dưới) |
+
+---
+
+## Ghi chú về giới hạn 24 giờ của Messenger
+
+Sau khi người dùng nhắn cho Page, bạn có **24 giờ** để trả lời (miễn phí). Hết 24h thì phải dùng tin nhắn có nhãn quảng cáo (tính phí).
+
+Với chatbot tra cứu thủ tục, người dùng thường hỏi nhiều lượt trong 1 phiên → 24h là đủ.
+
+Nếu cần nhắn lại sau 24h (ví dụ nhắc nhở hồ sơ), có thể dùng **Messenger Marketing Messages** hoặc chuyển sang Zalo OA (có cửa sổ 48h).
+
