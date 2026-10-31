@@ -140,16 +140,19 @@ async function handleFacebookWebhook(request, env, cfg, ctx) {
       for (const ev of events) {
         try {
           const history = await getHistory(env, 'facebook', ev.senderId);
+          // Người dùng bấm quick reply -> payload chứa mã thủ tục chính xác.
+          // Dùng payload thay vì text hiển thị để không phải đoán lại.
+          const inputText = ev.quickReplyPayload || ev.text;
           const r = await handleMessage({
             dvc,
             ai,
             cfg,
-            text: ev.text,
+            text: inputText,
             channel: { id: 'facebook', aiEnabled: ch.aiEnabled },
             history,
           });
-          await fb.sendMessages(ch, ev.senderId, r.messages);
-          await pushHistory(env, 'facebook', ev.senderId, 'user', ev.text);
+          await fb.sendMessages(ch, ev.senderId, r.messages, r.quickReplies || []);
+          await pushHistory(env, 'facebook', ev.senderId, 'user', inputText);
           await pushHistory(env, 'facebook', ev.senderId, 'bot', r.messages.join('\n'));
           await logEvent(env, {
             channel: 'facebook',

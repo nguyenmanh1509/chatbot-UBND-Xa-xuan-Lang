@@ -57,17 +57,38 @@ export function handleChallenge(url, verifyToken) {
   return new Response('Forbidden', { status: 403 });
 }
 
-/** Gửi tin nhắn qua Graph API. */
-export async function sendMessage(cfg, { recipientId, text }) {
+/**
+ * Gửi tin nhắn qua Graph API.
+ *
+ * `quickReplies` (tuỳ chọn): danh sách nút bấm được hiện dưới tin nhắn.
+ * Messenger GIỚI HẠN 13 quick reply, tiêu đề tối đa 20 ký tự.
+ *
+ * LƯU Ý về định dạng: ô text của Messenger hiển thị TEXT THUẦN.
+ * Thẻ HTML (<b>, <a href>) sẽ bị lộ nguyên ra màn hình -> KHÔNG dùng.
+ * Muốn link bấm được thì để URL TRẦN, Messenger tự nhận diện (giống
+ * số điện thoại). Quick replies là cách DUY NHẤT để mã thủ tục bấm được.
+ */
+export async function sendMessage(cfg, { recipientId, text, quickReplies = [] }) {
   const url = `https://graph.facebook.com/${API_VERSION}/${cfg.pageId}/messages?access_token=${encodeURIComponent(
     cfg.pageAccessToken
   )}`;
+
+  const message = { text };
+  if (Array.isArray(quickReplies) && quickReplies.length) {
+    // Giới hạn theo Messenger: tối đa 13 quick reply.
+    message.quick_replies = quickReplies.slice(0, 13).map((q) => ({
+      content_type: 'text',
+      title: String(q.title || '').slice(0, 20),
+      payload: String(q.payload || q.title || '').slice(0, 1000),
+    }));
+  }
+
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       recipient: { id: recipientId },
-      message: { text },
+      message,
       messaging_type: 'RESPONSE',
     }),
   });
@@ -78,13 +99,24 @@ export async function sendMessage(cfg, { recipientId, text }) {
   return res.json();
 }
 
-/** Gửi nhiều tin (khi câu trả lời dài) — giới hạn 2000 ký tự/tin. */
-export async function sendMessages(cfg, recipientId, messages) {
+/**
+ * Gửi nhiều tin (khi câu trả lời dài) — giới hạn 2000 ký tự/tin.
+ *
+ * `quickReplies` chỉ gắn vào tin ĐẦU TIÊN (Messenger chỉ hiển thị nút
+ * bấm dưới tin mới nhất, nên gắn vào tin cuối cũng không hiện).
+ */
+export async function sendMessages(cfg, recipientId, messages, quickReplies = []) {
   const sent = [];
+  let first = true;
   for (const m of messages) {
     if (!m || !m.trim()) continue;
-    await sendMessage(cfg, { recipientId, text: m });
+    await sendMessage(cfg, {
+      recipientId,
+      text: m,
+      quickReplies: first ? quickReplies : [],
+    });
     sent.push(m);
+    first = false;
     // Nghỉ nhẹ giữa các tin để không chạm rate limit
     if (messages.length > 1) await new Promise((r) => setTimeout(r, 300));
   }
@@ -102,6 +134,9 @@ export function extractMessages(payload) {
           text: messaging.message.text,
           messageId: messaging.message.mid,
           isEcho: Boolean(messaging.message.is_echo),
+          // Người dùng bấm quick reply -> Messenger gửi payload (mã thủ tục)
+          // kèm text hiển thị. Ưu tiên payload vì đó là mã chính xác.
+          quickReplyPayload: messaging.message.quick_reply?.payload || null,
         });
       }
     }

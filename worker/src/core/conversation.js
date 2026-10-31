@@ -12,7 +12,6 @@ import {
   formatProcessingTime,
 } from './retrieve.js';
 import { parseIntent, stripVN } from './nlu.js';
-import { renderForChannel } from './format.js';
 
 /** Tạo engine từ config. */
 export function makeEngines(cfg, env = {}) {
@@ -61,7 +60,6 @@ export async function handleMessage({ dvc, ai, cfg, text, channel, history = [] 
   }
 
   const intent = parseIntent(input);
-
   // Lệnh trợ giúp
   if (intent.type === 'command' && intent.command === 'help') {
     return {
@@ -114,11 +112,16 @@ export async function handleMessage({ dvc, ai, cfg, text, channel, history = [] 
     // Bật AI: trả lời tự nhiên dựa trên ngữ cảnh
     const aiOn = channel?.aiEnabled !== false && cfg.ai.provider !== 'none';
 
-    // Danh sách nhiều thủ tục -> LUÔN hiển thị dạng có mã bấm được.
+    // Danh sách nhiều thủ tục -> LUÔN hiển thị dạng có mã + link.
     // Không để AI viết lại danh sách vì AI hay làm mờ/bỏ mã, và người dùng
-    // cần mã + link để tra cứu cụ thể.
+    // cần mã để tra cứu cụ thể.
     if (ctx.kind === 'results') {
-      return { messages: renderMessages(formatDeterministic(ctx, cfg), channel?.id), meta };
+      return {
+        messages: splitForChat(formatDeterministic(ctx, cfg)),
+        // Nút bấm nhanh: bấm mã thủ tục -> Messenger gửi payload -> bot tra chi tiết.
+        quickReplies: buildQuickReplies(ctx),
+        meta,
+      };
     }
 
     if (aiOn) {
@@ -129,28 +132,18 @@ export async function handleMessage({ dvc, ai, cfg, text, channel, history = [] 
         // Gắn link nộp trực tuyến nếu có và chưa có trong câu trả lời
         const links = (ctx.sources || []).filter((s) => s.url && /^https?:/.test(s.url));
         if (links.length && !/https?:\/\//.test(out)) {
-          out += '\n\n' + links.map((l) => `🔗 [${l.label || 'Nộp trực tuyến'}](${l.url})`).join('\n');
+          out += '\n\n' + links.map((l) => `🔗 ${l.label || 'Nộp trực tuyến'}: ${l.url}`).join('\n');
         }
-        return { messages: renderMessages(out, channel?.id), meta };
+        return { messages: splitForChat(out), meta };
       }
     }
 
     // Không có AI -> trả kết quả dạng text có cấu trúc (luôn hoạt động)
-    return { messages: renderMessages(formatDeterministic(ctx, cfg), channel?.id), meta };
+    return { messages: splitForChat(formatDeterministic(ctx, cfg)), meta };
   } catch (err) {
     meta.error = String(err?.message || err);
     return { messages: [cfg.errorMessage], meta };
   }
-}
-
-/**
- * Render nội dung cho từng kênh + cắt thành nhiều tin nếu quá dài.
- * @param {string} text - nội dung Markdown rút gọn
- * @param {string} channelId - 'web' | 'facebook' | 'zalo-bot' | ...
- */
-export function renderMessages(text, channelId) {
-  const rendered = renderForChannel(text, channelId);
-  return splitForChat(rendered);
 }
 
 /**
@@ -206,20 +199,17 @@ export function formatDeterministic(ctx, cfg) {
     for (const it of ctx.data.slice(0, 8)) {
       lines.push('');
       lines.push(`• *${it.name || '(Không có tên)'}*`);
-      // Mã thủ tục -> link bấm được (mở thẳng trang thủ tục trên Cổng DVC).
-      // Nhờ vậy người dùng không phải gõ lại mã, tránh sai sót.
-      const code = it.code || '';
-      if (code && it.portal_url) {
-        lines.push(`  Mã: [${code}](${it.portal_url})`);
-      } else if (code) {
-        lines.push(`  Mã: ${code}`);
-      }
+      // Mã thủ tục nằm ngay cạnh tên để người dùng copy nhanh.
+      if (it.code) lines.push(`  Mã: ${it.code}`);
       if (it.issuing_agency) lines.push(`  Cơ quan: ${it.issuing_agency}`);
-      if (it.citizen_url) lines.push(`  Nộp online: ${it.citizen_url}`);
+      // URL TRẦN (không dùng Markdown/HTML) -> Messenger tự nhận diện và
+      // cho bấm mở, giống cách số điện thoại trong tin nhắn.
+      if (it.portal_url) lines.push(`  ${it.portal_url}`);
+      else if (it.citizen_url) lines.push(`  ${it.citizen_url}`);
     }
     lines.push('');
     lines.push(
-      'Anh/chị bấm vào mã thủ tục để xem chi tiết đầy đủ, hoặc nhắn lại mã (vd: 1.000894) để em tra cứu trong hệ thống.'
+      'Anh/chị nhắn lại mã thủ tục (vd: 1.000894) để em tra cứu chi tiết đầy đủ ạ.'
     );
     return lines.join('\n');
   }
@@ -227,6 +217,25 @@ export function formatDeterministic(ctx, cfg) {
   // Danh mục / thống kê
   if (ctx.text) return ctx.text;
   return cfg.fallbackMessage;
+}
+
+/**
+ * Tạo quick replies từ danh sách thủ tục tìm được.
+ *
+ * Messenger GIỚI HẠN 13 quick reply, tiêu đề tối đa 20 ký tự.
+ * Payload = mã thủ tục -> khi người dùng bấm, Messenger gửi payload,
+ * bot nhận đúng mã và tra chi tiết (không phải đoán lại từ text).
+ */
+export function buildQuickReplies(ctx) {
+  if (ctx?.kind !== 'results' || !Array.isArray(ctx.data)) return [];
+  const out = [];
+  for (const it of ctx.data) {
+    const code = (it?.code || '').trim();
+    if (!code) continue;
+    out.push({ title: code, payload: code });
+    if (out.length >= 13) break;
+  }
+  return out;
 }
 
 /** Kiểm tra câu hỏi có liên quan tới thủ tục hành chính không (lọc rác). */
