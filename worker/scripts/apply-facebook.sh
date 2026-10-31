@@ -15,6 +15,18 @@ set -euo pipefail
 WORKER_URL="${WORKER_URL:-https://ubnd-xuanlang-bot.nguyenmanh15092003.workers.dev}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
 
+# Tự nạp biến từ file .env nếu có (đặt trước để có thể override bằng env thật).
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/../.env"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+  # Biến truyền từ dòng lệnh vẫn thắng (đã export sẵn nên gán lại)
+  [ -n "${WORKER_URL_OVERRIDE:-}" ] && WORKER_URL="$WORKER_URL_OVERRIDE"
+fi
+
 if [ -z "$ADMIN_PASSWORD" ]; then
   echo "❌ Thiếu ADMIN_PASSWORD. Đặt bằng:  ADMIN_PASSWORD='...' $0" >&2
   exit 1

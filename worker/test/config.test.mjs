@@ -10,6 +10,7 @@ import {
   redactConfig,
   mergeSecretFields,
   channelStatus,
+  applyEnvOverrides,
 } from '../src/core/config.js';
 
 let pass = 0;
@@ -155,6 +156,42 @@ section('Trạng thái kênh');
   c.channels.zaloBot.enabled = true;
   st = channelStatus(c);
   check('Zalo Bot bật nhưng thiếu token -> chưa configured', st.zaloBot.configured === false);
+}
+
+section('Áp biến môi trường (.env / .dev.vars)');
+{
+  // Env đầy đủ -> tự bật kênh Facebook
+  const c1 = applyEnvOverrides(defaultConfig(), {
+    FB_PAGE_ID: '123',
+    FB_PAGE_ACCESS_TOKEN: 'tok',
+    FB_VERIFY_TOKEN: 'vt',
+  });
+  check('env đủ -> tự bật kênh FB', c1.channels.facebook.enabled === true);
+  check('env -> lấy Page ID', c1.channels.facebook.pageId === '123');
+  check('env -> lấy Verify Token', c1.channels.facebook.verifyToken === 'vt');
+
+  // Env thiếu -> không bật
+  const c2 = applyEnvOverrides(defaultConfig(), { FB_VERIFY_TOKEN: 'vt' });
+  check('env thiếu token -> không bật kênh', c2.channels.facebook.enabled === false);
+  check('env thiếu -> vẫn lấy verifyToken', c2.channels.facebook.verifyToken === 'vt');
+
+  // Giá trị đã lưu trong KV được giữ nguyên (ưu tiên KV > env)
+  const saved = defaultConfig();
+  saved.channels.facebook.pageId = 'ID_CU_KV';
+  const c3 = applyEnvOverrides(saved, { FB_PAGE_ID: 'ID_TU_ENV', FB_VERIFY_TOKEN: 'vt' });
+  check('KV được ưu tiên hơn env', c3.channels.facebook.pageId === 'ID_CU_KV', c3.channels.facebook.pageId);
+
+  // Env có Zalo Bot -> tự bật
+  const c4 = applyEnvOverrides(defaultConfig(), { ZB_BOT_TOKEN: 'zbtok' });
+  check('env Zalo Bot -> tự bật', c4.channels.zaloBot.enabled === true && c4.channels.zaloBot.botToken === 'zbtok');
+
+  // Env rỗng -> không đụng vào config
+  const c5 = applyEnvOverrides(defaultConfig(), {});
+  check('env rỗng -> config không đổi', c5.channels.facebook.enabled === false && c5.channels.facebook.pageId === '');
+
+  // Không có env -> trả về nguyên config
+  const c6 = applyEnvOverrides(defaultConfig(), undefined);
+  check('env undefined -> an toàn', c6.channels.facebook.enabled === false);
 }
 
 console.log(`\n${'='.repeat(46)}`);

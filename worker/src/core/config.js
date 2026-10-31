@@ -162,14 +162,68 @@ export function mergeSecretFields(incoming, saved) {
   return out;
 }
 
+/**
+ * Áp giá trị từ biến môi trường (file .env / .dev.vars) vào cấu hình.
+ *
+ * Mục đích: khi chạy LOCAL (wrangler dev), chỉ cần khai báo trong .dev.vars
+ * là dùng được ngay, không phải đăng nhập Admin panel mỗi lần.
+ * Trên PRODUCTION, biến môi trường (wrangler secret / vars) được áp trước
+ * KV — nên nếu đã cấu hình trong Admin panel thì giá trị đó vẫn được giữ.
+ *
+ * Thứ tự ưu tiên: giá trị đã lưu trong KV > biến môi trường > mặc định.
+ */
+export function applyEnvOverrides(cfg, env) {
+  if (!env) return cfg;
+  const out = { ...cfg, channels: { ...cfg.channels } };
+
+  // -- Facebook --
+  const fb = { ...(out.channels.facebook || {}) };
+  if (!fb.pageId && env.FB_PAGE_ID) fb.pageId = env.FB_PAGE_ID;
+  if (!fb.pageAccessToken && env.FB_PAGE_ACCESS_TOKEN) fb.pageAccessToken = env.FB_PAGE_ACCESS_TOKEN;
+  if (!fb.appSecret && env.FB_APP_SECRET) fb.appSecret = env.FB_APP_SECRET;
+  if (!fb.verifyToken && env.FB_VERIFY_TOKEN) fb.verifyToken = env.FB_VERIFY_TOKEN;
+  // Chỉ bật kênh tự động khi đủ cả 3 món bắt buộc.
+  if (!fb.enabled && fb.pageId && fb.pageAccessToken && fb.verifyToken) fb.enabled = true;
+  out.channels.facebook = fb;
+
+  // -- Zalo Bot --
+  const zb = { ...(out.channels.zaloBot || {}) };
+  if (!zb.botToken && env.ZB_BOT_TOKEN) zb.botToken = env.ZB_BOT_TOKEN;
+  if (!zb.secretToken && env.ZB_SECRET_TOKEN) zb.secretToken = env.ZB_SECRET_TOKEN;
+  if (!zb.enabled && zb.botToken) zb.enabled = true;
+  out.channels.zaloBot = zb;
+
+  // -- Zalo OA --
+  const zo = { ...(out.channels.zaloOa || {}) };
+  if (!zo.oaId && env.ZO_OA_ID) zo.oaId = env.ZO_OA_ID;
+  if (!zo.accessToken && env.ZO_ACCESS_TOKEN) zo.accessToken = env.ZO_ACCESS_TOKEN;
+  if (!zo.refreshToken && env.ZO_REFRESH_TOKEN) zo.refreshToken = env.ZO_REFRESH_TOKEN;
+  if (!zo.secretKey && env.ZO_SECRET_KEY) zo.secretKey = env.ZO_SECRET_KEY;
+  if (!zo.appId && env.ZO_APP_ID) zo.appId = env.ZO_APP_ID;
+  if (!zo.enabled && zo.oaId && zo.accessToken && zo.secretKey) zo.enabled = true;
+  out.channels.zaloOa = zo;
+
+  // -- AI --
+  const ai = { ...(out.ai || {}) };
+  if (!ai.geminiApiKey && env.GEMINI_API_KEY) ai.geminiApiKey = env.GEMINI_API_KEY;
+  out.ai = ai;
+
+  // -- DVC --
+  const dvc = { ...(out.dvc || {}) };
+  if (!dvc.apiKey && env.DVC_API_KEY) dvc.apiKey = env.DVC_API_KEY;
+  out.dvc = dvc;
+
+  return out;
+}
+
 /** Đọc cấu hình từ KV. */
 export async function loadConfig(env) {
-  if (!env.CONFIG) return defaultConfig();
+  if (!env.CONFIG) return applyEnvOverrides(defaultConfig(), env);
   try {
     const raw = await env.CONFIG.get(CONFIG_KEY, 'json');
-    return mergeConfig(raw);
+    return applyEnvOverrides(mergeConfig(raw), env);
   } catch (_) {
-    return defaultConfig();
+    return applyEnvOverrides(defaultConfig(), env);
   }
 }
 
