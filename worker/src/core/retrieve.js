@@ -3,7 +3,13 @@
  * Kết quả trả về luôn có `sources` để AI dẫn nguồn và để admin hiển thị.
  */
 
-import { stripVN, extractLocationAndKeyword, keywordFallbacks, extractCode } from './nlu.js';
+import {
+  stripVN,
+  extractLocationAndKeyword,
+  keywordFallbacks,
+  extractCode,
+  isGenericKeyword,
+} from './nlu.js';
 
 const MAX_TEXT = 2000; // giới hạn ký tự mỗi tin (Zalo sendMessage & Messenger đều 2000)
 
@@ -136,6 +142,9 @@ export async function findProcedures(dvc, rawText, { limit = 6 } = {}) {
 
   // 3) Không có địa danh -> search toàn quốc, fallback bỏ dần từ cuối
   for (const cand of keywordFallbacks(keyword || rawText)) {
+    // Bỏ qua từ khoá quá chung chung ("đăng", "cấp") -> API trả hàng
+    // nghìn thủ tục không liên quan, gây loạn cho người dùng.
+    if (isGenericKeyword(cand)) continue;
     const r = await dvc.searchProcedures(cand, { limit });
     if (r.items.length) {
       return {
@@ -191,6 +200,23 @@ export function procedureToContext(item) {
   return lines.join('\n');
 }
 
+/**
+ * Chuẩn hóa 1 trường về MẢNG đối tượng.
+ *
+ * VÌ SAO CẦN:
+ * API DVC không nhất quán về kiểu dữ liệu. Ví dụ `requirements_conditions`
+ * của thủ tục "2.000507" trả về CHUỖI (rỗng) trong khi các thủ tục khác
+ * trả về MẢNG. Gọi `.map()` trên chuỗi sẽ ném TypeError -> bot báo
+ * "không tìm thấy thủ tục" dù mã đúng.
+ */
+export function asArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === null || value === undefined || value === '') return [];
+  if (typeof value === 'string') return [{ name: value }];
+  if (typeof value === 'object') return [value];
+  return [];
+}
+
 /** Rút gọn chi tiết thủ tục (hồ sơ, phí, trình tự) thành text cho AI. */
 export function detailToContext(d) {
   const lines = [];
@@ -198,28 +224,28 @@ export function detailToContext(d) {
   lines.push(`Mã: ${d.code || ''}`);
   if (d.issuing_agency) lines.push(`Cơ quan ban hành: ${d.issuing_agency}`);
 
-  const auth = (d.departments_authority || []).map((x) => x.name).filter(Boolean);
+  const auth = asArray(d.departments_authority).map((x) => x.name).filter(Boolean);
   if (auth.length) lines.push(`Cơ quan tiếp nhận & giải quyết: ${auth.join('; ')}`);
 
   if (d.processing_time) {
     lines.push(`Thời gian xử lý: ${formatProcessingTime(d.processing_time, d.processing_time_unit)}`);
   }
 
-  const comps = (d.components || [])
-    .map((c) => (c.name || '').replace(/^-\s*/, '').trim())
+  const comps = asArray(d.components)
+    .map((c) => (c.name || c.description || '').replace(/^-\s*/, '').trim())
     .filter((n) => n && n.length > 4);
   if (comps.length) lines.push(`Thành phần hồ sơ: ${comps.join('; ')}`);
 
-  const fees = (d.fees || [])
+  const fees = asArray(d.fees)
     .map((f) => `${f.description || ''} ${f.value ?? ''} ${f.currencyId || 'VND'}`.trim())
     .filter(Boolean);
   if (fees.length) lines.push(`Lệ phí: ${fees.join('; ')}`);
 
-  const results = (d.results || []).map((r) => r.name).filter(Boolean);
+  const results = asArray(d.results).map((r) => r.name).filter(Boolean);
   if (results.length) lines.push(`Kết quả thực hiện: ${results.join('; ')}`);
 
-  const steps = (d.steps || [])
-    .map((s) => (s.description || '').replace(/\s+/g, ' ').trim())
+  const steps = asArray(d.steps)
+    .map((s) => (s.description || s.name || '').replace(/\s+/g, ' ').trim())
     .filter(Boolean);
   if (steps.length) {
     const brief = steps.map((s) => (s.length > 300 ? s.slice(0, 300) + '…' : s)).join(' | ');
@@ -227,7 +253,7 @@ export function detailToContext(d) {
   }
 
   // Điều kiện thực hiện (rút gọn)
-  const conditions = (d.requirements_conditions || [])
+  const conditions = asArray(d.requirements_conditions)
     .map((c) => (c.name || c.description || '').replace(/\s+/g, ' ').trim())
     .filter((n) => n && n.length > 10);
   if (conditions.length) {
@@ -236,7 +262,7 @@ export function detailToContext(d) {
     );
   }
 
-  const legal = (d.legal_basis || []).map((l) => l.name).filter(Boolean);
+  const legal = asArray(d.legal_basis).map((l) => l.name).filter(Boolean);
   if (legal.length) lines.push(`Căn cứ pháp lý: ${legal.join('; ')}`);
 
   const links = (d.submission_links || []).filter((l) => l.url);

@@ -10,6 +10,7 @@ import {
   splitForChat,
   truncate,
   formatProcessingTime,
+  asArray,
 } from './retrieve.js';
 import { parseIntent, stripVN } from './nlu.js';
 
@@ -158,15 +159,15 @@ export function formatDeterministic(ctx, cfg) {
     lines.push(`*${d.name || 'Chi tiết thủ tục'}* (Mã: ${d.code || '—'})`);
     if (d.issuing_agency) lines.push(`Cơ quan ban hành: ${d.issuing_agency}`);
 
-    const auth = (d.departments_authority || []).map((x) => x.name).filter(Boolean);
+    const auth = asArray(d.departments_authority).map((x) => x.name).filter(Boolean);
     if (auth.length) lines.push(`Cơ quan tiếp nhận: ${auth.join('; ')}`);
 
     if (d.processing_time) {
       lines.push(`Thời gian xử lý: ${formatProcessingTime(d.processing_time, d.processing_time_unit)}`);
     }
 
-    const comps = (d.components || [])
-      .map((c) => (c.name || '').replace(/^-\s*/, '').trim())
+    const comps = asArray(d.components)
+      .map((c) => (c.name || c.description || '').replace(/^-\s*/, '').trim())
       .filter((n) => n && n.length > 4);
     if (comps.length) {
       lines.push('');
@@ -174,7 +175,7 @@ export function formatDeterministic(ctx, cfg) {
       for (const c of comps.slice(0, 12)) lines.push(`- ${c}`);
     }
 
-    const results = (d.results || []).map((r) => r.name).filter(Boolean);
+    const results = asArray(d.results).map((r) => r.name).filter(Boolean);
     if (results.length) {
       lines.push('');
       lines.push(`*Kết quả:* ${results.join('; ')}`);

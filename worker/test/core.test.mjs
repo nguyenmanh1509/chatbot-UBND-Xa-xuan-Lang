@@ -7,7 +7,15 @@ import { DvcClient } from '../src/core/dvc.js';
 import { AiEngine } from '../src/core/ai.js';
 import { buildContext, findProcedures, splitForChat, truncate } from '../src/core/retrieve.js';
 import { handleMessage, formatDeterministic } from '../src/core/conversation.js';
-import { extractLocationAndKeyword, stripVN, keywordFallbacks, parseIntent } from '../src/core/nlu.js';
+import {
+  extractLocationAndKeyword,
+  stripVN,
+  keywordFallbacks,
+  parseIntent,
+  extractCode,
+  looksLikeCode,
+  isGenericKeyword,
+} from '../src/core/nlu.js';
 import { defaultConfig } from '../src/core/config.js';
 
 let pass = 0;
@@ -63,7 +71,32 @@ section('NLU — trích xuất địa danh');
   check('tên xã không nuốt "thủ tục gì"', r6.wardQuery[0] === 'Xuân Lãng', JSON.stringify(r6.wardQuery));
 
   const r7 = extractLocationAndKeyword('đăng ký hộ khẩu tại Phú Thọ');
-  check('"tại Phú Thọ" -> provinceQuery', r7.provinceQuery.includes('Phú Thọ'), JSON.stringify(r7));
+  check('"tại Phú Thọ" -> provinceQuery', r7.provinceQuery.includes('Phú Thọ'), JSON.stringify(r7.provinceQuery));
+}
+
+section('NLU — hồi quy lỗi tìm kiếm');
+{
+  // LỖI 1: "đăng kí kết hôn" (viết "kí") -> API trả 0 -> fallback bỏ từ
+  // quá sâu -> "đăng" -> 1303 thủ tục vô nghĩa.
+  const fb1 = keywordFallbacks('đăng kí kết hôn');
+  check('fallback không sinh chuỗi 1 từ', fb1.every((s) => s.split(/\s+/).length >= 2), JSON.stringify(fb1));
+  check('fallback có "kết hôn"', fb1.includes('kết hôn'), JSON.stringify(fb1));
+
+  // LỖI 2: từ khóa chỉ gồm từ generic -> phải bị loại, tránh spam.
+  check('"đăng" là generic', isGenericKeyword('đăng'));
+  check('"đăng ký" là generic', isGenericKeyword('đăng ký'));
+  check('"cấp hộ khẩu" KHÔNG generic', !isGenericKeyword('cấp hộ khẩu'));
+  check('"đăng ký kết hôn" KHÔNG generic', !isGenericKeyword('đăng ký kết hôn'));
+
+  // API DVC kén từ khóa: bỏ từ generic ở đầu cho kết quả đúng.
+  const fb2 = keywordFallbacks('cấp hộ khẩu');
+  check('fallback "cấp hộ khẩu" có "hộ khẩu"', fb2.includes('hộ khẩu'), JSON.stringify(fb2));
+
+  // Mã thủ tục ở giữa câu + mã nhiều nhóm.
+  check('extractCode giữa câu', extractCode('cho tôi xem 1.000894') === '1.000894');
+  check('extractCode nhiều nhóm', extractCode('1.005.123') === '1.005.123');
+  check('extractCode không cắt mã', extractCode('2.000507') === '2.000507');
+  check('looksLikeCode mã nhiều nhóm', looksLikeCode('1.005.123'));
 }
 
 section('DVC — gọi API thật');

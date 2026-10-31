@@ -118,9 +118,9 @@ export function normalizeKeyword(kw) {
     .trim();
 }
 
-/** Câu hỏi có phải mã thủ tục không (vd "1.000894"). */
+/** Câu hỏi có phải mã thủ tục không (vd "1.000894" hoặc "1.005.123"). */
 export function looksLikeCode(text) {
-  return /^\d+\.\d+$/.test(String(text || '').trim());
+  return /^\d{1,3}(?:\.\d{3,6}){1,3}$/.test(String(text || '').trim());
 }
 
 /**
@@ -131,33 +131,127 @@ export function looksLikeCode(text) {
  *   "cho tôi xem 1.000894", "mã 1.000894 đó", "1.000894."
  * Regex ^\d+\.\d+$ trước đây chỉ khớp khi câu CHỈ CÓ mã -> rơi xuống
  * tìm kiếm tự do và ra thủ tục khác. Hàm này bắt mã ở giữa câu.
+ *
+ * Định dạng mã thủ tục thực tế: "1.000894" hoặc "1.005.123" (nhóm số
+ * phân tách bằng dấu chấm). Regex phải giữ trọn vẹn cả chuỗi, nếu không
+ * "1.005.123" sẽ bị cắt còn "1.005" -> tra nhầm thủ tục khác.
  */
 export function extractCode(text) {
-  const m = String(text || '').match(/\b(\d{1,3}\.\d{3,8})\b/);
+  const m = String(text || '').match(/\b(\d{1,3}(?:\.\d{3,6}){1,3})\b/);
   return m ? m[1] : null;
 }
 
 /**
  * Chuỗi fallback khi search đầy đủ không ra kết quả: bỏ dần từ cuối.
  * "đăng ký kết hôn tại xã Xuân Lãng" -> "đăng ký kết hôn"
+ *
+ * VÌ SAO CẦN GIỚI HẠN ĐỘ DÀI TỐI THIỂU:
+ * Ví dụ người dùng gõ "đăng kí kết hôn" (viết "kí" thay "ký"):
+ *   - "đăng kí kết hôn" -> API trả 0 kết quả
+ *   - bỏ từ cuối: "đăng kí kết" -> 0, "đăng kí" -> 0
+ *   - bỏ tiếp: "đăng" -> 1303 kết quả (quá rộng, sai hoàn toàn)
+ *
+ * Nếu không giới hạn, bot trả 1303 thủ tục vô nghĩa thay vì báo "không
+ * tìm thấy". Vì vậy chỉ chấp nhận chuỗi fallback có TỪ ÍT NHẤT 2 từ,
+ * và loại bỏ các từ quá chung chung ("đăng", "cấp", "làm", "thủ tục"...).
  */
 export function keywordFallbacks(text) {
   const tokens = String(text || '').trim().split(/\s+/).filter(Boolean);
   const out = [];
-  // Thử cả 2 dạng viết "đăng ký" <-> "đăng kí"
+
+  // Thử cả 2 dạng viết "đăng ký" <-> "đăng kí", "cấp" <-> "cấp mới"...
   const variants = [tokens];
-  const swapped = tokens.map((t) =>
-    t.toLowerCase() === 'đăng ký' ? 'đăng kí' : t.toLowerCase() === 'đăng kí' ? 'đăng ký' : t
-  );
+  const swap = (t) => {
+    const s = t.toLowerCase();
+    if (s === 'đăng ký') return 'đăng kí';
+    if (s === 'đăng kí') return 'đăng ký';
+    return t;
+  };
+  const swapped = tokens.map(swap);
   if (swapped.join(' ') !== tokens.join(' ')) variants.push(swapped);
 
   for (const variant of variants) {
-    for (let i = variant.length; i >= 1; i--) {
-      const cand = variant.slice(0, i).join(' ').trim();
-      if (cand) out.push(cand);
+    // Bỏ các từ generic ở ĐẦU câu.
+    //
+    // VÌ SAO: API DVC rất kén từ khóa. Đo được:
+    //   "cấp hộ khẩu"  -> 0 kết quả
+    //   "hộ khẩu"      -> 7 kết quả  (đúng ý!)
+    //   "đăng ký kết hôn" -> 8, "kết hôn" -> 12
+    // Tức là từ "cấp"/"đăng ký" ở đầu chỉ gây nhiễu. Bỏ chúng đi sẽ ra
+    // đúng kết quả mong muốn.
+    const stripped = stripLeadingGeneric(variant);
+
+    // Thử CHÍNH XÁC chuỗi gốc trước (ưu tiên khớp nhất), rồi mới thử
+    // chuỗi đã bỏ generic, rồi bỏ dần từ cuối.
+    const chain = [variant, stripped];
+    for (const base of chain) {
+      for (let i = base.length; i >= 2; i--) {
+        const cand = base.slice(0, i).join(' ').trim();
+        if (cand) out.push(cand);
+      }
     }
   }
   return [...new Set(out)];
+}
+
+/**
+ * Bỏ các từ generic ở đầu chuỗi (vd "đăng ký", "cấp", "làm", "thủ tục").
+ * Giữ nguyên phần còn lại nếu còn đủ từ có nghĩa.
+ */
+export function stripLeadingGeneric(tokens) {
+  const out = [...tokens];
+  while (out.length > 2) {
+    const first = stripVN(out[0]);
+    const second = stripVN(out[1] || '');
+    // "đăng ký"/"đăng kí" -> bỏ cả cụm 2 từ
+    if (first === 'dang' && (second === 'ky' || second === 'ki')) {
+      out.splice(0, 2);
+      continue;
+    }
+    // "thủ tục" -> bỏ cả cụm 2 từ
+    if (first === 'thu' && second === 'tuc') {
+      out.splice(0, 2);
+      continue;
+    }
+    if (GENERIC_SINGLE.has(first)) {
+      out.shift();
+      continue;
+    }
+    break;
+  }
+  return out;
+}
+
+/**
+ * Từ quá chung chung — dùng một mình sẽ trả về hàng nghìn thủ tục vô nghĩa.
+ * Chỉ dùng khi kèm thêm từ khác (ví dụ "cấp hộ khẩu" -> "cấp" là OK).
+ */
+export const GENERIC_KEYWORDS = new Set([
+  'đăng', 'dang', 'cấp', 'cap', 'làm', 'lam', 'thủ', 'tục', 'thu', 'tuc',
+  'hồ', 'sơ', 'ho', 'so', 'giấy', 'tờ', 'giay', 'to', 'thông', 'tin',
+  'ký', 'ký', 'ky', 'ki',
+]);
+
+/** Từ generic đơn lẻ có thể bỏ ở đầu chuỗi tìm kiếm. */
+const GENERIC_SINGLE = new Set([
+  'dang', 'cap', 'lam', 'thu', 'ho', 'so', 'giay', 'to',
+]);
+
+/**
+ * Chuỗi tìm kiếm có quá chung chung không?
+ *
+ * Một chuỗi chỉ gồm các từ generic ("đăng", "cấp", "thủ tục"...) sẽ
+ * trả về hàng nghìn thủ tục không liên quan. Còn "cấp hộ khẩu" thì có
+ * từ cụ thể nên vẫn OK.
+ *
+ * LƯU Ý: so khớp theo TỪ, không theo cụm. Vì vậy "đăng ký" (2 từ, cả 2
+ * đều generic) vẫn bị coi là generic -> tránh trả về 1120 thủ tục.
+ */
+export function isGenericKeyword(text) {
+  const tokens = stripVN(String(text || '')).split(/\s+/).filter(Boolean);
+  if (!tokens.length) return true;
+  // Cần ÍT NHẤT 1 từ không generic thì mới dùng làm từ khoá tìm kiếm.
+  return tokens.every((t) => GENERIC_KEYWORDS.has(t));
 }
 
 /** Tách câu hỏi thành các thông tin có cấu trúc (cho AI). */
