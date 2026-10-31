@@ -6,6 +6,14 @@
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const CF_AI_BASE = 'https://api.cloudflare.com/client/v4/accounts';
 
+/**
+ * Model Workers AI dùng làm fallback.
+ *
+ * Ưu tiên các model llama vì chạy ổn định và có quota generous hơn.
+ * Đổi qua biến môi trường CF_AI_MODEL nếu muốn thử model khác.
+ */
+const CF_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
+
 const DEFAULT_SYSTEM_PROMPT = `Bạn là trợ lý tra cứu thủ tục hành chính của UBND xã Xuân Lãng, tỉnh Phú Thọ.
 
 NGUYÊN TẮC BẮT BUỘC:
@@ -31,6 +39,9 @@ export class AiEngine {
     this.cfAiToken = opts.cfAiToken || '';
     this.systemPrompt = opts.systemPrompt || DEFAULT_SYSTEM_PROMPT;
     this.model = opts.model || 'gemini-3.8-flash';
+    // Binding AI của Cloudflare Worker (env.AI) — cách dùng MIỄN PHÍ,
+    // không cần tạo API token thủ công. Ưu tiên cao nhất sau Gemini.
+    this.aiBinding = opts.aiBinding || null;
   }
 
   get hasGemini() {
@@ -38,7 +49,41 @@ export class AiEngine {
   }
 
   get hasCfAi() {
-    return Boolean(this.accountId && this.cfAiToken);
+    return Boolean(this.aiBinding) || Boolean(this.accountId && this.cfAiToken);
+  }
+
+  /**
+   * Gọi Workers AI qua binding `env.AI` (không cần token).
+   * Đây là cách khuyến nghị: token Cloudflare trong code là rủi ro bảo mật.
+   */
+  async askCfAiBinding(question, context, { history = [] } = {}) {
+    if (!this.aiBinding) return null;
+    const contents = [];
+    for (const h of history.slice(-6)) {
+      contents.push({
+        role: h.role === 'bot' ? 'assistant' : 'user',
+        content: h.text,
+      });
+    }
+    contents.push({
+      role: 'user',
+      content: `DỮ LIỆU TRA CỨU:\n${context || '(Không có dữ liệu)'}\n\nCÂU HỎI CỦA NGƯỜI DÙNG:\n${question}`,
+    });
+
+    try {
+      const res = await this.aiBinding.run(CF_AI_MODEL, {
+        messages: [
+          { role: 'system', content: this.systemPrompt },
+          ...contents,
+        ],
+        max_tokens: 700,
+        temperature: 0.2,
+      });
+      const txt = (res?.response || res?.result?.response || '').trim();
+      return txt || null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /** Gọi Gemini. Trả về string hoặc null nếu lỗi/hết quota. */
@@ -86,14 +131,14 @@ export class AiEngine {
     }
   }
 
-  /** Fallback: Cloudflare Workers AI (Llama). */
+  /** Fallback: Cloudflare Workers AI (Llama) qua REST API + token thủ công. */
   async askCfAi(question, context) {
-    if (!this.hasCfAi) return null;
+    if (!this.accountId || !this.cfAiToken) return null;
     const prompt = `${this.systemPrompt}\n\nDỮ LIỆU TRA CỨU:\n${context || '(Không có dữ liệu)'}\n\nCÂU HỎI:\n${question}`;
 
     try {
       const res = await fetch(
-        `${CF_AI_BASE}/${this.accountId}/ai/run/@cf/meta/llama-3.1-8b-instruct-fp8-fast`,
+        `${CF_AI_BASE}/${this.accountId}/ai/run/${CF_AI_MODEL}`,
         {
           method: 'POST',
           headers: {
@@ -120,11 +165,16 @@ export class AiEngine {
   }
 
   /**
-   * Hỏi AI. Thứ tự: Gemini -> Workers AI -> null (gọi fallback tất định).
+   * Hỏi AI. Thứ tự: Gemini -> Workers AI (binding) -> Workers AI (REST) -> null.
+   *
+   * Ưu tiên binding vì không cần token và hoạt động sẵn trên tài khoản Free.
    */
   async ask(question, context, opts = {}) {
     const g = await this.askGemini(question, context, opts);
     if (g) return { text: g, engine: 'gemini' };
+
+    const b = await this.askCfAiBinding(question, context, opts);
+    if (b) return { text: b, engine: 'workers-ai' };
 
     const c = await this.askCfAi(question, context);
     if (c) return { text: c, engine: 'workers-ai' };

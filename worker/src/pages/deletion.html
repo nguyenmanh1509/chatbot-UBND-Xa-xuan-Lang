@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Xóa dữ liệu — Chatbot UBND xã Xuân Lãng</title>
+<meta name="description" content="Hướng dẫn yêu cầu xóa dữ liệu cá nhân và lịch sử hội thoại của Chatbot UBND xã Xuân Lãng.">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f1f5f9;color:#0f172a;line-height:1.7}
+.wrap{max-width:820px;margin:0 auto;padding:28px 18px 60px}
+header{background:#0B3D62;color:#fff;border-radius:14px;padding:22px 24px;margin-bottom:22px}
+header h1{margin:0 0 6px;font-size:21px}
+header p{margin:0;font-size:13px;opacity:.9}
+section{background:#fff;border-radius:12px;padding:18px 22px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+h2{font-size:16px;margin:0 0 10px;color:#0B3D62}
+ul,ol{margin:8px 0;padding-left:22px}
+li{margin-bottom:6px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+th,td{border:1px solid #e2e8f0;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#f8fafc;font-weight:600}
+.tag{display:inline-block;background:#dcfce7;color:#166534;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600;margin-bottom:12px}
+.note{background:#eff6ff;border-left:4px solid #0B3D62;padding:11px 14px;border-radius:8px;font-size:14px;margin-top:10px}
+form{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:10px}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}
+input,textarea{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:inherit}
+button{margin-top:14px;padding:11px 20px;border:0;border-radius:9px;background:#0B3D62;color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+button:hover{background:#092f4c}
+#result{margin-top:12px;padding:11px 14px;border-radius:8px;font-size:14px;display:none}
+#result.ok{display:block;background:#dcfce7;color:#166534}
+#result.err{display:block;background:#fee2e2;color:#991b1b}
+footer{text-align:center;color:#64748b;font-size:12px;margin-top:24px}
+a{color:#0B3D62}
+@media (max-width:640px){.wrap{padding:16px 12px 40px}header{padding:18px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Xóa dữ liệu cá nhân</h1>
+  <p>Chatbot trợ lý tra cứu thủ tục hành chính — UBND xã Xuân Lãng, huyện Hùng Xuyên, tỉnh Phú Thọ</p>
+</header>
+
+<div class="tag">Cập nhật lần cuối: 31/10/2026</div>
+
+<section>
+  <h2>1. Quyền được xóa dữ liệu</h2>
+  <p>Theo Nghị định 13/2023/NĐ-CP và Luật Bảo vệ dữ liệu cá nhân, người dùng có quyền yêu cầu xóa dữ liệu cá nhân của mình đã được xử lý bởi hệ thống Chatbot UBND xã Xuân Lãng.</p>
+</section>
+
+<section>
+  <h2>2. Phạm vi dữ liệu có thể xóa</h2>
+  <table>
+    <thead><tr><th>Dữ liệu</th><th>Cách xóa</th><th>Thời gian xử lý</th></tr></thead>
+    <tbody>
+      <tr><td>Lịch sử hội thoại của bạn trên chatbot</td><td>Gửi yêu cầu qua biểu mẫu bên dưới hoặc email</td><td>Trong vòng 24 giờ làm việc</td></tr>
+      <tr><td>Dữ liệu thống kê lượt sử dụng ẩn danh</td><td>Tự động xóa sau 30 ngày theo quy định lưu trữ</td><td>Tự động</td></tr>
+      <tr><td>Định danh người dùng nền tảng (PSID / Zalo ID)</td><td>Xóa cùng lịch sử hội thoại</td><td>Trong vòng 24 giờ làm việc</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    Lưu ý: Xóa dữ liệu không ảnh hưởng đến quyền của bạn trong việc sử dụng các dịch vụ hành chính khác của UBND xã Xuân Lãng.
+  </div>
+</section>
+
+<section>
+  <h2>3. Gửi yêu cầu xóa dữ liệu</h2>
+  <p>Điền biểu mẫu dưới đây, hoặc gửi email kèm thông tin tài khoản Facebook/Zalo của bạn đến <a href="mailto:nguyenmanh15092003@gmail.com">nguyenmanh15092003@gmail.com</a>.</p>
+  <form id="delForm">
+    <label for="pname">Họ và tên <span style="font-weight:400;color:#64748b">(không bắt buộc)</span></label>
+    <input id="pname" name="pname" placeholder="Nguyễn Văn A">
+    <label for="platform">Nền tảng</label>
+    <select id="platform" name="platform" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
+      <option value="facebook">Facebook Messenger</option>
+      <option value="zalo">Zalo</option>
+      <option value="both">Cả hai</option>
+    </select>
+    <label for="uid">Định danh người dùng (PSID hoặc Zalo user ID)</label>
+    <input id="uid" name="uid" placeholder="Ví dụ: 1234567890123456" required>
+    <label for="note">Ghi chú thêm (không bắt buộc)</label>
+    <textarea id="note" name="note" rows="3" placeholder="Mô tả yêu cầu cụ thể của bạn"></textarea>
+    <button type="submit">Gửi yêu cầu xóa dữ liệu</button>
+    <div id="result"></div>
+  </form>
+</section>
+
+<section>
+  <h2>4. Xác nhận danh tính</h2>
+  <p>Để bảo vệ quyền lợi của người dùng, chúng tôi có thể kiểm tra danh tính qua tin nhắn trên chính kênh Facebook/Zalo mà bạn đã sử dụng, trước khi xóa dữ liệu.</p>
+</section>
+
+<section>
+  <h2>5. Thời hạn và kết quả</h2>
+  <ul>
+    <li>Yêu cầu được ghi nhận ngay khi hệ thống nhận được.</li>
+    <li>Dữ liệu lịch sử hội thoại bị xóa trong vòng 24 giờ làm việc.</li>
+    <li>Bạn sẽ nhận được phản hồi xác nhận qua tin nhắn hoặc email.</li>
+  </ul>
+</section>
+
+<footer>
+  UBND xã Xuân Lãng · Trợ lý tra cứu thủ tục hành chính<br>
+  Liên hệ: nguyenmanh15092003@gmail.com
+</footer>
+
+</div>
+
+<script>
+document.getElementById('delForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const box = document.getElementById('result');
+  const fd = new FormData(this);
+  box.className = '';
+  box.textContent = 'Đang gửi yêu cầu…';
+  box.classList.add('ok');
+  try {
+    const res = await fetch('/api/delete-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        platform: fd.get('platform'),
+        userId: fd.get('uid'),
+        name: fd.get('pname') || '',
+        note: fd.get('note') || '',
+      }),
+    });
+    const j = await res.json();
+    box.className = res.ok && j.ok ? 'ok' : 'err';
+    box.textContent = res.ok && j.ok
+      ? '✓ Đã ghi nhận yêu cầu. Mã yêu cầu: ' + (j.id || '—') + '. Chúng tôi sẽ xóa dữ liệu trong 24 giờ làm việc.'
+      : '✕ Không gửi được: ' + (j.error || 'Lỗi ' + res.status);
+  } catch (err) {
+    box.className = 'err';
+    box.textContent = '✕ Lỗi kết nối: ' + err.message;
+  }
+});
+</script>
+</body>
+</html>

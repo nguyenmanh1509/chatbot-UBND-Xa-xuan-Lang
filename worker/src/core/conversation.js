@@ -12,9 +12,10 @@ import {
   formatProcessingTime,
 } from './retrieve.js';
 import { parseIntent, stripVN } from './nlu.js';
+import { renderForChannel } from './format.js';
 
 /** Tạo engine từ config. */
-export function makeEngines(cfg) {
+export function makeEngines(cfg, env = {}) {
   const dvc = new DvcClient(cfg.dvc);
   const ai = new AiEngine({
     geminiApiKey: cfg.ai.geminiApiKey,
@@ -22,6 +23,8 @@ export function makeEngines(cfg) {
     cfAiToken: cfg.ai.cfApiToken,
     model: cfg.ai.geminiModel,
     systemPrompt: cfg.ai.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+    // Binding Workers AI — dùng được miễn phí, không cần API token.
+    aiBinding: env.AI || null,
   });
   return { dvc, ai };
 }
@@ -91,6 +94,18 @@ export async function handleMessage({ dvc, ai, cfg, text, channel, history = [] 
     meta.kind = ctx.kind;
     meta.scope = ctx.scope || null;
 
+    // Người dùng gõ mã thủ tục nhưng mã không tồn tại -> báo rõ, KHÔNG
+    // im lặng tìm thủ tục khác (đó là lỗi gây khó chịu nhất).
+    if (ctx.kind === 'notfound') {
+      return {
+        messages: [
+          `Em chưa tìm thấy thủ tục nào có mã "${ctx.missingCode}".\n\n` +
+            'Anh/chị kiểm tra lại mã (ví dụ: 1.000894) hoặc nhắn lại tên thủ tục để em tra cứu giúp ạ.',
+        ],
+        meta,
+      };
+    }
+
     // Không có dữ liệu -> trả fallback tất định
     if (!ctx.text || !ctx.text.trim()) {
       return { messages: [cfg.fallbackMessage], meta };
@@ -98,6 +113,14 @@ export async function handleMessage({ dvc, ai, cfg, text, channel, history = [] 
 
     // Bật AI: trả lời tự nhiên dựa trên ngữ cảnh
     const aiOn = channel?.aiEnabled !== false && cfg.ai.provider !== 'none';
+
+    // Danh sách nhiều thủ tục -> LUÔN hiển thị dạng có mã bấm được.
+    // Không để AI viết lại danh sách vì AI hay làm mờ/bỏ mã, và người dùng
+    // cần mã + link để tra cứu cụ thể.
+    if (ctx.kind === 'results') {
+      return { messages: renderMessages(formatDeterministic(ctx, cfg), channel?.id), meta };
+    }
+
     if (aiOn) {
       const r = await ai.ask(input, ctx.text, { history });
       if (r.text) {
@@ -106,18 +129,28 @@ export async function handleMessage({ dvc, ai, cfg, text, channel, history = [] 
         // Gắn link nộp trực tuyến nếu có và chưa có trong câu trả lời
         const links = (ctx.sources || []).filter((s) => s.url && /^https?:/.test(s.url));
         if (links.length && !/https?:\/\//.test(out)) {
-          out += '\n\n' + links.map((l) => `🔗 ${l.label || 'Nộp trực tuyến'}: ${l.url}`).join('\n');
+          out += '\n\n' + links.map((l) => `🔗 [${l.label || 'Nộp trực tuyến'}](${l.url})`).join('\n');
         }
-        return { messages: splitForChat(out), meta };
+        return { messages: renderMessages(out, channel?.id), meta };
       }
     }
 
     // Không có AI -> trả kết quả dạng text có cấu trúc (luôn hoạt động)
-    return { messages: splitForChat(formatDeterministic(ctx, cfg)), meta };
+    return { messages: renderMessages(formatDeterministic(ctx, cfg), channel?.id), meta };
   } catch (err) {
     meta.error = String(err?.message || err);
     return { messages: [cfg.errorMessage], meta };
   }
+}
+
+/**
+ * Render nội dung cho từng kênh + cắt thành nhiều tin nếu quá dài.
+ * @param {string} text - nội dung Markdown rút gọn
+ * @param {string} channelId - 'web' | 'facebook' | 'zalo-bot' | ...
+ */
+export function renderMessages(text, channelId) {
+  const rendered = renderForChannel(text, channelId);
+  return splitForChat(rendered);
 }
 
 /**
@@ -173,12 +206,21 @@ export function formatDeterministic(ctx, cfg) {
     for (const it of ctx.data.slice(0, 8)) {
       lines.push('');
       lines.push(`• *${it.name || '(Không có tên)'}*`);
-      if (it.code) lines.push(`  Mã: ${it.code}`);
+      // Mã thủ tục -> link bấm được (mở thẳng trang thủ tục trên Cổng DVC).
+      // Nhờ vậy người dùng không phải gõ lại mã, tránh sai sót.
+      const code = it.code || '';
+      if (code && it.portal_url) {
+        lines.push(`  Mã: [${code}](${it.portal_url})`);
+      } else if (code) {
+        lines.push(`  Mã: ${code}`);
+      }
       if (it.issuing_agency) lines.push(`  Cơ quan: ${it.issuing_agency}`);
       if (it.citizen_url) lines.push(`  Nộp online: ${it.citizen_url}`);
     }
     lines.push('');
-    lines.push('Anh/chị nhắn mã thủ tục (vd: 1.000894) để xem chi tiết đầy đủ.');
+    lines.push(
+      'Anh/chị bấm vào mã thủ tục để xem chi tiết đầy đủ, hoặc nhắn lại mã (vd: 1.000894) để em tra cứu trong hệ thống.'
+    );
     return lines.join('\n');
   }
 

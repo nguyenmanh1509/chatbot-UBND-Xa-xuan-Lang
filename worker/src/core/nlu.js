@@ -124,6 +124,20 @@ export function looksLikeCode(text) {
 }
 
 /**
+ * Tìm mã thủ tục xuất hiện ở BẤT KỲ vị trí nào trong câu.
+ *
+ * VÌ SAO CẦN:
+ * Người dùng thường gõ kèm lời giới thiệu, ví dụ:
+ *   "cho tôi xem 1.000894", "mã 1.000894 đó", "1.000894."
+ * Regex ^\d+\.\d+$ trước đây chỉ khớp khi câu CHỈ CÓ mã -> rơi xuống
+ * tìm kiếm tự do và ra thủ tục khác. Hàm này bắt mã ở giữa câu.
+ */
+export function extractCode(text) {
+  const m = String(text || '').match(/\b(\d{1,3}\.\d{3,8})\b/);
+  return m ? m[1] : null;
+}
+
+/**
  * Chuỗi fallback khi search đầy đủ không ra kết quả: bỏ dần từ cuối.
  * "đăng ký kết hôn tại xã Xuân Lãng" -> "đăng ký kết hôn"
  */

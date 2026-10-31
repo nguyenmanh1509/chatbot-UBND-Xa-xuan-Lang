@@ -3,7 +3,7 @@
  * Kết quả trả về luôn có `sources` để AI dẫn nguồn và để admin hiển thị.
  */
 
-import { stripVN, extractLocationAndKeyword, keywordFallbacks } from './nlu.js';
+import { stripVN, extractLocationAndKeyword, keywordFallbacks, extractCode } from './nlu.js';
 
 const MAX_TEXT = 2000; // giới hạn ký tự mỗi tin (Zalo sendMessage & Messenger đều 2000)
 
@@ -287,14 +287,33 @@ export async function buildContext(dvc, rawText, { defaultWardCode } = {}) {
   }
 
   // Mã thủ tục -> chi tiết
-  if (/^\d+\.\d+$/.test(trimmed)) {
-    const d = await dvc.getProcedure(trimmed);
-    return {
-      kind: 'detail',
-      text: detailToContext(d),
-      data: d,
-      sources: d.portal_url ? [{ label: 'Cổng DVC Quốc gia', url: d.portal_url }] : [],
-    };
+  // Nhận diện mã ở MỌI vị trí trong câu (vd "cho tôi xem 1.000894"),
+  // không chỉ khi câu chỉ chứa mã.
+  const code = extractCode(trimmed);
+  if (code) {
+    try {
+      const d = await dvc.getProcedure(code);
+      if (d && (d.code || d.name)) {
+        const links = (d.submission_links || []).filter((l) => l.url);
+        const sources = links.length
+          ? links.map((l) => ({ label: l.label || 'Nộp trực tuyến', url: l.url }))
+          : d.portal_url
+          ? [{ label: 'Cổng DVC Quốc gia', url: d.portal_url }]
+          : [];
+        return { kind: 'detail', text: detailToContext(d), data: d, sources, scope: 'detail' };
+      }
+    } catch (_) {
+      // Mã không tồn tại -> báo lỗi rõ ràng thay vì tìm thủ tục khác
+      return {
+        kind: 'notfound',
+        text: '',
+        data: null,
+        total: 0,
+        scope: 'detail',
+        sources: [],
+        missingCode: code,
+      };
+    }
   }
 
   // Câu hỏi tự nhiên -> tìm thủ tục

@@ -11,7 +11,11 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;backgrou
 h1{font-size:17px;margin:0 0 12px}
 #log{flex:1;overflow:auto;background:#fff;border-radius:12px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .msg{margin-bottom:10px;padding:10px 12px;border-radius:12px;max-width:85%;white-space:pre-wrap;line-height:1.5;font-size:14px}
+.msg a{color:#0B3D62;font-weight:600;text-decoration:underline;word-break:break-all}
+.msg.bot a{color:#0B3D62}
+.msg.bot a:hover{background:#e0f2fe;border-radius:4px;padding:1px 3px}
 .user{background:#0B3D62;color:#fff;margin-left:auto}
+.user a{color:#bae6fd}
 .bot{background:#f1f5f9}
 form{display:flex;gap:8px;margin-top:12px}
 input{flex:1;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px}
@@ -59,7 +63,14 @@ for (const s of SUGGESTIONS) {
 function add(t, who) {
   const d = document.createElement('div');
   d.className = 'msg ' + who;
-  d.textContent = t;
+  // Tin từ bot do server đã render sẵn thành HTML an toàn
+  // (link <a>, in đậm <strong>) -> dùng innerHTML.
+  // Tin từ người dùng là text thuần -> dùng textContent (chống XSS).
+  if (who === 'bot') {
+    d.innerHTML = t;
+  } else {
+    d.textContent = t;
+  }
   log.appendChild(d);
   log.scrollTop = log.scrollHeight;
 }

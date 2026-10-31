@@ -24,7 +24,7 @@ export function defaultConfig() {
     },
 
     ai: {
-      provider: 'gemini', // gemini | workers-ai | none
+      provider: 'workers-ai', // workers-ai | gemini | none
       geminiApiKey: '',
       geminiModel: 'gemini-3.8-flash',
       cfAccountId: '',

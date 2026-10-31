@@ -25,6 +25,8 @@ import * as zbot from './channels/zalo-bot.js';
 import * as zoa from './channels/zalo-oa.js';
 import ADMIN_HTML from './pages/admin.html';
 import CHAT_HTML from './pages/chat.html';
+import PRIVACY_HTML from './pages/privacy.html';
+import DELETION_HTML from './pages/deletion.html';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' };
 
@@ -134,7 +136,7 @@ async function handleFacebookWebhook(request, env, cfg, ctx) {
   const ctxWait = ctx.waitUntil.bind(ctx);
   ctxWait(
     (async () => {
-      const { dvc, ai } = makeEngines(cfg);
+      const { dvc, ai } = makeEngines(cfg, env);
       for (const ev of events) {
         try {
           const history = await getHistory(env, 'facebook', ev.senderId);
@@ -191,7 +193,7 @@ async function handleZaloBotWebhook(request, env, cfg, ctx) {
   const ctxWait = ctx.waitUntil.bind(ctx);
   ctxWait(
     (async () => {
-      const { dvc, ai } = makeEngines(cfg);
+      const { dvc, ai } = makeEngines(cfg, env);
       for (const ev of events) {
         try {
           const history = await getHistory(env, 'zalo-bot', ev.chatId);
@@ -254,7 +256,7 @@ async function handleZaloOaWebhook(request, env, cfg, ctx) {
   const ctxWait = ctx.waitUntil.bind(ctx);
   ctxWait(
     (async () => {
-      const { dvc, ai } = makeEngines(cfg);
+      const { dvc, ai } = makeEngines(cfg, env);
       for (const ev of events) {
         try {
           const history = await getHistory(env, 'zalo-oa', ev.senderId);
@@ -299,7 +301,7 @@ async function handleChatApi(request, env, cfg) {
   if (!text) return fail('Thiếu nội dung câu hỏi');
 
   try {
-    const { dvc, ai } = makeEngines(cfg);
+    const { dvc, ai } = makeEngines(cfg, env);
     const history = await getHistory(env, 'web', sessionId);
     const r = await handleMessage({
       dvc,
@@ -320,6 +322,56 @@ async function handleChatApi(request, env, cfg) {
   } catch (err) {
     return fail(String(err?.message || err), 500);
   }
+}
+
+/**
+ * Nhận yêu cầu xóa dữ liệu từ trang /deletion.
+ *
+ * Endpoint CÔNG KHAI (không cần admin token) vì đây là yêu cầu của
+ * người dùng theo quy định bảo vệ dữ liệu cá nhân (NĐ 13/2023).
+ * Ghi lại log để cán bộ xử lý, đồng thời xóa ngay lịch sử hội thoại
+ * của userId đó trên tất cả kênh (nếu có).
+ */
+async function handleDeleteRequest(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (_) {
+    return fail('Body phải là JSON');
+  }
+
+  const userId = String(body?.userId || '').trim();
+  const platform = String(body?.platform || 'facebook').trim();
+  if (!userId) return fail('Thiếu định danh người dùng');
+
+  const id = `del-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  // Xóa lịch sử hội thoại của user trên các kênh liên quan.
+  const channels = platform === 'both' ? ['facebook', 'zalo-bot', 'zalo-oa', 'web'] : [platform];
+  const removed = [];
+  for (const ch of channels) {
+    if (!env.LOGS) break;
+    try {
+      const existed = await env.LOGS.get(`hist:${ch}:${userId}`);
+      if (existed) {
+        await env.LOGS.delete(`hist:${ch}:${userId}`);
+        removed.push(ch);
+      }
+    } catch (_) { /* bỏ qua lỗi từng kênh */ }
+  }
+
+  await logEvent(env, {
+    channel: 'privacy',
+    type: 'delete_request',
+    id,
+    user: userId,
+    platform,
+    name: String(body?.name || ''),
+    note: String(body?.note || ''),
+    removedChannels: removed,
+  });
+
+  return ok({ id, removedChannels: removed });
 }
 
 /** API quản trị. */
@@ -438,7 +490,7 @@ async function handleAdminApi(request, env, cfg, pathname) {
 
     if (target === 'dvc') {
       try {
-        const { dvc } = makeEngines(cfg);
+        const { dvc } = makeEngines(cfg, env);
         const h = await dvc.health();
         results.dvc = h?.ok
           ? { ok: true, detail: 'Kết nối DVC thành công' }
@@ -449,7 +501,7 @@ async function handleAdminApi(request, env, cfg, pathname) {
     }
 
     if (target === 'ai') {
-      const { ai } = makeEngines(cfg);
+      const { ai } = makeEngines(cfg, env);
       if (!ai.hasGemini && !ai.hasCfAi) {
         results.ai = { ok: false, error: 'Chưa cấu hình API key AI nào' };
       } else {
@@ -510,7 +562,7 @@ async function handleAdminApi(request, env, cfg, pathname) {
     const text = String(body?.text || '').trim();
     if (!text) return fail('Thiếu câu hỏi');
     try {
-      const { dvc, ai } = makeEngines(cfg);
+      const { dvc, ai } = makeEngines(cfg, env);
       const r = await handleMessage({
         dvc,
         ai,
@@ -588,8 +640,20 @@ export default {
       if (pathname.startsWith('/api/admin/')) {
         return await handleAdminApi(request, env, cfg, pathname);
       }
+      // Yêu cầu xóa dữ liệu — endpoint công khai, không cần admin token.
+      if (pathname === '/api/delete-request' && request.method === 'POST') {
+        return await handleDeleteRequest(request, env);
+      }
       if (pathname === '/admin' || pathname === '/admin/') {
         return new Response(ADMIN_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      }
+      // Trang chính sách quyền riêng tư + xóa dữ liệu.
+      // Meta yêu cầu 2 URL này khi chuyển ứng dụng sang chế độ Chính thức.
+      if (pathname === '/privacy' || pathname === '/privacy/' || pathname === '/privacy-policy') {
+        return new Response(PRIVACY_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+      }
+      if (pathname === '/deletion' || pathname === '/deletion/' || pathname === '/data-deletion') {
+        return new Response(DELETION_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
       }
       if (pathname === '/api/health') {
         return ok({ status: 'ok', channels: channelStatus(cfg) });

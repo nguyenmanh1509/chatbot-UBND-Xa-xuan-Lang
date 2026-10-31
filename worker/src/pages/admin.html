@@ -230,15 +230,19 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
         <h2>Nhà cung cấp AI</h2>
         <label>Cấu hình AI</label>
         <select id="ai.provider">
-          <option value="gemini">Google Gemini (miễn phí)</option>
-          <option value="workers-ai">Cloudflare Workers AI (dự phòng)</option>
+          <option value="workers-ai">Cloudflare Workers AI — miễn phí, không cần API key (khuyến nghị)</option>
+          <option value="gemini">Google Gemini (cần điền API key)</option>
           <option value="none">Không dùng AI — chỉ tra cứu thuần (luôn hoạt động)</option>
         </select>
+        <p class="hint">
+          Workers AI dùng binding <code>AI</code> của Worker — đã bật sẵn, không tốn phí và không cần điền khoá.
+          Gemini sẽ được ưu tiên trước nếu bạn có điền API key.
+        </p>
         <div class="grid">
           <div>
             <label>Gemini API Key</label>
             <input id="ai.geminiApiKey" type="password" placeholder="AIza...">
-            <p class="hint">Lấy miễn phí tại aistudio.google.com/apikey</p>
+            <p class="hint">Lấy miễn phí tại aistudio.google.com/apikey — không bắt buộc</p>
           </div>
           <div>
             <label>Gemini Model</label>
@@ -248,11 +252,12 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           <div>
             <label>Cloudflare Account ID</label>
             <input id="ai.cfAccountId">
-            <p class="hint">Dùng cho Workers AI dự phòng</p>
+            <p class="hint">Không cần điền nếu dùng Workers AI binding</p>
           </div>
           <div>
             <label>Cloudflare API Token</label>
             <input id="ai.cfApiToken" type="password">
+            <p class="hint">Không cần điền nếu dùng Workers AI binding</p>
           </div>
         </div>
         <label>System Prompt (để trống = dùng prompt mặc định an toàn)</label>

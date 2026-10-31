@@ -301,3 +301,31 @@ Với chatbot tra cứu thủ tục, người dùng thường hỏi nhiều lư�
 
 Nếu cần nhắn lại sau 24h (ví dụ nhắc nhở hồ sơ), có thể dùng **Messenger Marketing Messages** hoặc chuyển sang Zalo OA (có cửa sổ 48h).
 
+---
+
+## Bắt buộc khi chuyển ứng dụng sang chế độ Chính thức (Live)
+
+Meta chỉ cho bật nút "Chuyển sang chính thức" khi app đã có 2 trang web công khai. Bot đã tự tạo sẵn:
+
+| Ô trong App settings → Basic | Điền URL |
+|---|---|
+| **URL chính sách quyền riêng tư** | `https://ubnd-xuanlang-bot.nguyenmanh15092003.workers.dev/privacy` |
+| **URL chỉ dẫn xóa dữ liệu** | `https://ubnd-xuanlang-bot.nguyenmanh15092003.workers.dev/deletion` |
+
+⚠️ **KHÔNG dán URL webhook vào ô chính sách quyền riêng tư.** `/webhook/facebook` là đường dẫn nhận sự kiện (trả về JSON), không phải trang web → Meta báo "link không hợp lệ" và từ chối lưu, kéo theo không bật được chế độ Chính thức.
+
+Ngoài ra, nếu muốn chỉnh cấu hình app bằng API:
+**App settings → Advanced → bật "Allow changes to app settings via API"**.
+
+---
+
+## Bật AI cho chatbot (KHÔNG cần mua API key)
+
+Bot dùng **Cloudflare Workers AI** qua binding `AI` của Worker — miễn phí trên gói Free, không cần đăng ký Gemini.
+
+**Cách bật:** Admin panel → tab **AI** → *Cấu hình AI* → chọn **Cloudflare Workers AI** → bấm **Lưu cấu hình** → bấm **Kiểm tra AI**.
+
+Nếu muốn AI trả lời tự nhiên hơn (Gemini thường hiểu tiếng Việt tốt hơn), lấy API key miễn phí tại https://aistudio.google.com/apikey rồi điền vào ô *Gemini API Key* — hệ thống sẽ ưu tiên Gemini, Workers AI làm dự phòng.
+
+**Không bắt buộc**: nếu tắt AI, bot vẫn trả lời đúng bằng dữ liệu DVC (dạng bảng danh sách có mã thủ tục bấm được).
+

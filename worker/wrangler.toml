@@ -17,6 +17,12 @@ SITE_NAME = "Trợ lý tra cứu thủ tục hành chính UBND xã Xuân Lãng"
 [observability]
 enabled = true
 
+# --- Workers AI binding ---
+# Gọi AI trực tiếp từ Worker, MIỄN PHÍ trên gói Free, KHÔNG cần API token.
+# Bật AI: provider = "workers-ai" trong Admin panel.
+[ai]
+binding = "AI"
+
 # Cron làm mới access token Zalo OA mỗi ngày 03:00 (giờ VN = 20:00 UTC hôm trước)
 [triggers]
 crons = ["0 20 * * *"]
