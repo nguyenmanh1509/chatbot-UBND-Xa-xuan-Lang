@@ -205,6 +205,26 @@ async function runIntegration() {
     headers: { Authorization: `Bearer ${ADMIN_PW}` },
   });
   record('admin', 'admin API chấp nhận token đúng', withAuth.json?.ok === true, withAuth.text.slice(0, 120));
+
+  // ==========================================================
+  //  BACKUP cấu hình thật
+  //
+  //  Bộ test ghi đè config (bật kênh, đổi appSecret, xoá token...).
+  //  Nếu chạy trên PRODUCTION, phải khôi phục lại nguyên trạng,
+  //  nếu không cấu hình thật của người dùng sẽ bị mất!
+  //
+  //  Dùng /api/admin/config-raw vì /api/admin/config che secrets (••••••).
+  // ==========================================================
+  const backupRes = await http('/api/admin/config-raw', {
+    headers: { Authorization: `Bearer ${ADMIN_PW}` },
+  });
+  const savedBackup = backupRes.json?.config;
+  if (!savedBackup) {
+    console.warn('  ⚠ Không đọc được bản backup cấu hình — sẽ không khôi phục');
+  } else {
+    console.log('  ℹ Đã backup cấu hình thật (sẽ khôi phục sau test)');
+  }
+
   record(
     'admin',
     'secret được che (không lộ token)',
@@ -326,14 +346,20 @@ async function runIntegration() {
   });
   record('zalo-bot', 'webhook Zalo Bot chặn secret sai', zbBad.status === 401 || zbBad.status === 403, `status=${zbBad.status}`);
 
-  // --- Tắt lại kênh Facebook sau khi test, trả cấu hình về mặc định ---
+  // --- Dọn dẹp: xoá hết cấu hình Facebook test ---
   await http('/api/admin/config', {
     method: 'POST',
     headers: { Authorization: `Bearer ${ADMIN_PW}` },
     body: {
       config: {
         channels: {
-          facebook: { enabled: false, appSecret: '', pageId: '', verifyToken: '' },
+          facebook: {
+            enabled: false,
+            appSecret: '',
+            pageId: '',
+            verifyToken: '',
+            pageAccessToken: '',
+          },
         },
       },
     },
@@ -395,6 +421,38 @@ async function runIntegration() {
       },
     },
   });
+
+  // ==========================================================
+  //  RESTORE cấu hình thật (quan trọng khi test trên PRODUCTION)
+  // ==========================================================
+  if (savedBackup) {
+    await http('/api/admin/config-raw', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${ADMIN_PW}` },
+      body: { config: savedBackup },
+    });
+    const after = await http('/api/admin/config-raw', {
+      headers: { Authorization: `Bearer ${ADMIN_PW}` },
+    });
+    const fb = after.json?.config?.channels?.facebook || {};
+    const ok =
+      fb.enabled === savedBackup.channels?.facebook?.enabled &&
+      (fb.pageId || '') === (savedBackup.channels?.facebook?.pageId || '') &&
+      (fb.verifyToken || '') === (savedBackup.channels?.facebook?.verifyToken || '') &&
+      (fb.pageAccessToken || '') === (savedBackup.channels?.facebook?.pageAccessToken || '') &&
+      (fb.appSecret || '') === (savedBackup.channels?.facebook?.appSecret || '');
+    record(
+      'admin',
+      'khôi phục lại cấu hình thật sau test',
+      ok,
+      `enabled=${fb.enabled} pageId=${fb.pageId} vt=${fb.verifyToken} token=${!!fb.pageAccessToken} secret=${!!fb.appSecret}`
+    );
+    console.log(
+      ok
+        ? '  ✔ Đã khôi phục cấu hình gốc (Page ID, token, verify token, app secret)'
+        : '  ⚠ Khôi phục cấu hình KHÔNG khớp — cần kiểm tra lại Admin panel'
+    );
+  }
 }
 
 /* ------------------------------------------------------------------ */

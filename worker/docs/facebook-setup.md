@@ -5,12 +5,14 @@
 
 Tổng thể có 4 giá trị cần lấy. Bảng bên dưới tóm tắt, phần sau là chi tiết từng bước.
 
-| # | Cần lấy | Lấy ở đâu (trong Meta for Developers) |
-|---|----------|---------------------------------------|
-| 1 | **Page ID** | Messenger → Settings → khung **Page Access** bên phải |
-| 2 | **App Secret** | App settings → Basic → **App secret** → bấm **Show** |
-| 3 | **Page Access Token** | Messenger → Settings → **Access Token** → **Generate token** |
-| 4 | **Verify Token** | **Tự đặt** — không lấy ở đâu cả, bạn tự nghĩ 1 chuỗi |
+| # | Cần lấy | Lấy ở đâu (trong Meta for Developers) | Bắt buộc? |
+|---|----------|--------------------------------------|-----------|
+| 1 | **Page ID** | Messenger → Settings → khung **Page Access** bên phải | ✅ Có |
+| 2 | **App Secret** | App settings → Basic → **App secret** → bấm **Show** | ⬜ Không (bỏ qua được) |
+| 3 | **Page Access Token** | Messenger → Settings → **Access Token** → **Generate token** | ✅ Có |
+| 4 | **Verify Token** | **Tự đặt** — không lấy ở đâu cả, bạn tự nghĩ 1 chuỗi | ✅ Có |
+
+> **Chỉ cần 3 giá trị** (Page ID, Token, Verify Token) là bot chạy được. App Secret bỏ trống vẫn OK.
 
 ---
 
@@ -64,15 +66,21 @@ https://graph.facebook.com/v26.0/me/accounts?access_token=TOKEN_CUA_BAN
 
 ---
 
-## BƯỚC 4 — Lấy App Secret (giá trị #2)
+## BƯỚC 4 — Lấy App Secret (giá trị #2) — KHÔNG BẮT BUỘC
+
+> ⚠️ **App Secret là tuỳ chọn.** Bot vẫn chạy bình thường nếu để trống.
+> Nó chỉ dùng để xác minh chữ ký webhook (chống giả mạo). Nếu chưa tìm thấy, bỏ qua
+> và làm tiếp — khi nào quen thì bổ sung sau.
 
 1. Menu trái → **Cài đặt ứng dụng** (tiếng Anh: *App settings*) → tab **Cơ bản** (Basic)
 2. Cuối trang, mục **App secret** → bấm nút **Hiển thị** (Show)
 3. Copy chuỗi (dạng `1234567890abcdef...`)
 
-> App Secret dùng để xác minh chữ ký webhook — nhờ vậy không ai giả mạo được Page của bạn.
->
 > 📌 Menu trái phải **cuộn xuống hết** mới thấy "Cài đặt ứng dụng" — nó nằm ở cuối menu.
+>
+> 📌 Nếu không thấy mục **App secret** ở tab Cơ bản: bạn đang mở **cài đặt của một sản phẩm khác**
+> (ví dụ "Cài đặt Messenger"), không phải cài đặt của app. Hãy chắc chắn chọn
+> **"Cài đặt ứng dụng"** ở menu trái, rồi tab **Cơ bản**.
 
 ---
 
@@ -247,7 +255,12 @@ Cách khắc phục:
 
 ### D. Không thấy mục "App Secret"
 
-→ Bạn đang ở tab khác của **App settings**. **App Secret** nằm ở tab **Basic**, cuộn xuống cuối trang.
+→ Bạn đang ở đúng tab **Cơ bản** chưa? **App Secret** nằm ở cuối trong, phần **Settings** → *Show*.
+
+→ Nếu vẫn không thấy: bạn đang xem **cài đặt của sản phẩm** (Messenger) chứ không phải
+**cài đặt của app**. Menu trái phải chọn đúng **"Cài đặt ứng dụng"** (App settings), tab **Cơ bản**.
+
+→ **Không tìm thấy cũng không sao** — App Secret là tuỳ chọn, bot vẫn chạy được. Bỏ qua.
 
 ### E. Không tìm thấy menu "App settings"
 

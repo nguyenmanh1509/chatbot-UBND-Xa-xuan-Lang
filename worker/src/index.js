@@ -11,7 +11,14 @@
  *   *    /api/admin/*       -> API quản trị (yêu cầu Bearer token)
  */
 
-import { loadConfig, saveConfig, redactConfig, mergeSecretFields, channelStatus } from './core/config.js';
+import {
+  loadConfig,
+  saveConfig,
+  redactConfig,
+  mergeConfig,
+  mergeSecretFields,
+  channelStatus,
+} from './core/config.js';
 import { makeEngines, handleMessage } from './core/conversation.js';
 import * as fb from './channels/facebook.js';
 import * as zbot from './channels/zalo-bot.js';
@@ -321,6 +328,31 @@ async function handleAdminApi(request, env, cfg, pathname) {
 
   // Lấy config
   if (pathname === '/api/admin/config' && request.method === 'GET') {
+    return ok({ config: redactConfig(cfg), status: channelStatus(cfg) });
+  }
+
+  // ------------------------------------------------------------------
+  //  Backup / Restore config — dùng cho bộ test tự động.
+  //
+  //  GET /api/admin/config trả về secrets đã che (••••••) nên không dùng
+  //  để backup được. Endpoint này trả config GỐC (chưa che), chỉ dành cho
+  //  script test nội bộ — cần đúng Bearer token admin.
+  // ------------------------------------------------------------------
+  if (pathname === '/api/admin/config-raw' && request.method === 'GET') {
+    return ok({ config: cfg });
+  }
+
+  if (pathname === '/api/admin/config-raw' && request.method === 'POST') {
+    let body;
+    try {
+      body = await request.json();
+    } catch (_) {
+      return fail('Body phải là JSON');
+    }
+    const raw = body?.config;
+    if (!raw || typeof raw !== 'object') return fail('Thiếu config');
+    await saveConfig(env, mergeConfig(raw));
+    await logEvent(env, { channel: 'admin', type: 'config_restored' });
     return ok({ config: redactConfig(cfg), status: channelStatus(cfg) });
   }
 
