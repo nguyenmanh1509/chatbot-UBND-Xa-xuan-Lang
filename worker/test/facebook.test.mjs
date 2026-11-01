@@ -128,6 +128,31 @@ section('Trích xuất sự kiện message');
   };
   const qr = extractMessages(qrPayload);
   check('bắt quick reply payload', qr[0]?.quickReplyPayload === '1.000894', String(qr[0]?.quickReplyPayload));
+
+  // Sự kiện optin: user nhấn nút "Bắt đầu" từ liên kết m.me / Chat Plugin /
+  // nút "Nhắn tin" trên website -> Meta gửi messaging_optins (KHÔNG có
+  // message.text). Nếu không bắt, bot im lặng đúng lúc user vừa bấm
+  // "nhắn tin" -> user tưởng bot chết.
+  const optinPayload = {
+    object: 'page',
+    entry: [
+      {
+        messaging: [
+          {
+            sender: { id: 'USER5' },
+            optins: [{ mid: 'mo1', ref: 'CHAT_PLUGIN', type: 'checkbox' }],
+            timestamp: 1760000000,
+          },
+        ],
+      },
+    ],
+  };
+  const op = extractMessages(optinPayload);
+  check('bắt được optin', op.length === 1, String(op.length));
+  check('optin đánh dấu isPostback', op[0]?.isPostback === true);
+  check('optin giữ senderId', op[0]?.senderId === 'USER5');
+  check('optin có text để bot nhận lời chào', op[0]?.text === 'bắt đầu', op[0]?.text);
+  check('optin giữ ref', op[0]?.postbackPayload === 'CHAT_PLUGIN', op[0]?.postbackPayload);
 }
 
 console.log(`\n${'='.repeat(46)}`);

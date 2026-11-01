@@ -7,11 +7,15 @@ export const CONFIG_KEY = 'config:v1';
 
 /** Cấu hình mặc định — dùng khi chưa có gì trong KV. */
 export function defaultConfig() {
-  return {
+    return {
     siteName: 'Trợ lý tra cứu thủ tục hành chính UBND xã Xuân Lãng',
+    // Tên hiển thị trên header web widget + tên chatbot trong Messenger.
+    chatTitle: 'Chatbot hỗ trợ tra cứu thủ tục hành chính',
+    // Tên cơ quan hiển thị trong câu mời người dân đến gặp.
+    officeName: 'Trung tâm Phục vụ hành chính công xã Xuân Lãng',
     greeting:
-      'Xin chào anh/chị! 👋\n' +
-      'Em là trợ lý tra cứu thủ tục hành chính của UBND xã Xuân Lãng, tỉnh Phú Thọ.\n\n' +
+      'Em chào anh/chị! 👋\n' +
+      'Em là Chatbot hỗ trợ tra cứu thủ tục hành chính của UBND xã Xuân Lãng, tỉnh Phú Thọ.\n\n' +
       'Anh/chị có thể hỏi em bằng câu tự nhiên, ví dụ:\n' +
       '• "Cần hồ sơ gì để đăng ký kết hôn?"\n' +
       '• "Thủ tục cấp hộ khẩu tại xã Xuân Lãng"\n' +
@@ -31,7 +35,9 @@ export function defaultConfig() {
     ai: {
       provider: 'workers-ai', // workers-ai | gemini | none
       geminiApiKey: '',
-      geminiModel: 'gemini-3.8-flash',
+      // Model Gemini hợp lệ. "gemini-3.8-flash" (bản cũ) KHÔNG tồn tại
+      // -> Gemini trả 404 -> mất trắng cả khi API key đúng.
+      geminiModel: 'gemini-2.5-flash',
       cfAccountId: '',
       cfApiToken: '',
       systemPrompt: '', // rỗng => dùng prompt mặc định

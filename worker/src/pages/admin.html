@@ -276,8 +276,8 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           </div>
           <div>
             <label>Gemini Model</label>
-            <input id="ai.geminiModel" value="gemini-3.8-flash">
-            <p class="hint">gemini-3.8-flash hoặc gemini-3.5-flash-lite</p>
+            <input id="ai.geminiModel" value="gemini-2.5-flash">
+            <p class="hint">gemini-2.5-flash (khuyến nghị) · gemini-2.0-flash · gemini-flash-latest</p>
           </div>
           <div>
             <label>Cloudflare Account ID</label>
@@ -324,15 +324,52 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
 
     <div id="tab-proc" class="hidden">
       <details class="card acc" open>
-        <summary>Thủ tục riêng của UBND xã Xuân Lãng</summary>
+        <summary>Thủ tục của UBND xã Xuân Lãng</summary>
         <div class="acc-body">
         <p class="hint">
-          Khai báo các thủ tục <b>riêng của xã</b> kèm thông tin liên hệ nội bộ.
-          Người dân chỉ cần nhắn tên thủ tục là bot trả ngay đồng chí phụ trách, bàn số, số điện thoại.
-          <br>Tất cả trường ngoài <b>Tên thủ tục</b> đều <b>có thể để trống</b> — trường trống sẽ không hiển thị trong câu trả lời.
+          <b>Bước 1 — Nhập thủ tục từ Cổng DVC Quốc gia.</b> Bấm nút bên dưới để tải toàn bộ
+          thủ tục áp dụng tại xã Xuân Lãng (khoảng 3.500 thủ tục, kèm mã và link trên dichvucong.gov.vn).
+          <br><b>Bước 2 — Gán chuyên viên phụ trách.</b> Tìm thủ tục, tick nhiều dòng rồi gán
+          đồng chí/bàn số/số điện thoại một lần. Khi người dân hỏi thủ tục đó, bot sẽ trả:
+          "Anh/chị hãy đến gặp đồng chí ... tại bàn ... tại Trung tâm Phục vụ hành chính công xã Xuân Lãng".
+          <br><b>Bước 3 — Thủ tục do xã tự khai báo.</b> Khai báo thêm ở bảng bên dưới nếu có
+          thủ tục riêng chỉ của xã. Tất cả trường ngoài <b>Tên thủ tục</b> đều
+          <b>có thể để trống</b> — trường trống sẽ không hiển thị trong câu trả lời.
         </p>
 
+        <div class="row" style="background:#f1f5f9;padding:12px;border-radius:10px;margin:12px 0">
+          <button class="grn" id="btnImport">⬇️ Nhập thủ tục từ Cổng DVC</button>
+          <button class="sec" id="btnImportAll">⬇️ Nhập tất cả (chạy nhiều lần)</button>
+          <button class="sec" id="btnReloadProc">🔄 Tải lại danh sách</button>
+          <span id="procImportMsg" class="hint"></span>
+        </div>
+
+        <div class="row">
+          <input id="procSearch" placeholder="🔍 Tìm thủ tục (tên, mã, lĩnh vực, đồng chí) — không dấu cũng được"
+                 style="flex:1;min-width:240px">
+          <select id="procFilter" style="max-width:200px">
+            <option value="all">Tất cả</option>
+            <option value="unassigned">Chưa gán chuyên viên</option>
+            <option value="assigned">Đã gán chuyên viên</option>
+          </select>
+        </div>
+        <div class="row" id="procBulkBar" style="display:none;background:#ecfdf5;padding:10px;border-radius:8px">
+          <b id="procSelCount">0</b> thủ tục đã chọn
+          <input id="b.officer" placeholder="Đồng chí phụ trách" style="max-width:180px">
+          <input id="b.desk" placeholder="Bàn số" style="max-width:130px">
+          <input id="b.phone" placeholder="Số điện thoại" style="max-width:160px">
+          <input id="b.office_hours" placeholder="Giờ làm việc" style="max-width:160px">
+          <button class="grn" id="btnAssign">Gán cho các thủ tục đã chọn</button>
+          <button class="sec" id="btnClearSel">Bỏ chọn</button>
+          <span id="procAssignMsg" class="hint"></span>
+        </div>
+
         <div id="procList"></div>
+        <div id="procPager" class="row" style="justify-content:center;margin-top:12px">
+          <button class="sec" id="procPrev">← Trang trước</button>
+          <span id="procPageInfo" class="hint"></span>
+          <button class="sec" id="procNext">Trang sau →</button>
+        </div>
 
         <details class="guide" style="margin-top:14px">
           <summary id="procFormTitle">➕ Thêm thủ tục mới</summary>
@@ -679,12 +716,22 @@ async function save() {
 async function doTest(ch) {
   const boxId = 'res-' + ch;
   try {
+    // Với AI: gửi kèm config đang gõ trong form để test được key vừa dán
+    // mà không cần bấm "Lưu" trước.
+    const payload = { channel: ch };
+    if (ch === 'ai') payload.config = { ai: collect().ai };
     const j = await api('/api/admin/test', {
       method: 'POST',
-      body: JSON.stringify({ channel: ch })
+      body: JSON.stringify(payload)
     });
     const res = j.results ? j.results[ch] : null;
     if (!res) { showMsg(boxId, false, 'Không có kết quả trả về'); return; }
+    // Có cảnh báo (vd provider chính lỗi nhưng provider dự phòng đã đáp)
+    // -> hiện cảnh báo, không báo "thành công" cho người dùng bị lừa.
+    if (res.warning) {
+      showMsg(boxId, false, res.warning + (res.detail ? ' — ' + res.detail : ''));
+      return;
+    }
     showMsg(boxId, res.ok, res.detail || res.error || '');
   } catch (e) {
     showMsg(boxId, false, e.message);
@@ -744,10 +791,20 @@ async function registerZaloBotWebhook() {
   }
 }
 
-/* ---------------- Thủ tục riêng của xã ---------------- */
+/* ---------------- Thủ tục của xã ---------------- */
 
 let PROCEDURES = [];
 let EDITING_PROC_ID = null;
+/** Số trang hiện tại (0-based) của danh sách thủ tục. */
+let PROC_PAGE = 0;
+/** Kích thước 1 trang danh sách thủ tục. */
+const PROC_PAGE_SIZE = 100;
+/** Tổng số thủ tục trong DB (để phân trang). */
+let PROC_TOTAL = 0;
+/** Thống kê gán chuyên viên. */
+let PROC_STATS = { total: 0, assigned: 0, unassigned: 0 };
+/** Danh sách id thủ tục đang được tick. */
+let PROC_SELECTED = [];
 
 function procFieldValue(f) {
   const el = $('p.' + f);
@@ -771,19 +828,45 @@ function resetProcForm() {
 
 async function loadProcedures() {
   try {
-    const j = await api('/api/admin/procedures');
+    const q = $('procSearch') ? $('procSearch').value.trim() : '';
+    const filter = $('procFilter') ? $('procFilter').value : 'all';
+    const url = '/api/admin/procedures?limit=' + PROC_PAGE_SIZE +
+      '&offset=' + (PROC_PAGE * PROC_PAGE_SIZE) +
+      (q ? '&q=' + encodeURIComponent(q) : '') +
+      (filter ? '&filter=' + encodeURIComponent(filter) : '');
+    const j = await api(url);
     PROCEDURES = j.procedures || [];
+    PROC_TOTAL = j.total || 0;
+    PROC_STATS = j.stats || PROC_STATS;
     renderProcedures();
+    renderProcPager();
   } catch (e) {
     $('procList').innerHTML = '<div class="msg err">✖ ' + e.message + '</div>';
   }
+}
+
+function renderProcPager() {
+  const info = $('procPageInfo');
+  if (!info) return;
+  const from = PROC_TOTAL === 0 ? 0 : PROC_PAGE * PROC_PAGE_SIZE + 1;
+  const to = Math.min(PROC_PAGE * PROC_PAGE_SIZE + PROC_PAGE_SIZE, PROC_TOTAL);
+  info.textContent = PROC_TOTAL === 0
+    ? 'Không có thủ tục nào'
+    : from + '–' + to + ' / ' + PROC_TOTAL + ' thủ tục' +
+      (PROC_STATS && PROC_STATS.total
+        ? '  •  đã gán ' + PROC_STATS.assigned + ' / chưa gán ' + PROC_STATS.unassigned
+        : '');
+  const prev = $('procPrev');
+  const next = $('procNext');
+  if (prev) prev.disabled = PROC_PAGE <= 0;
+  if (next) next.disabled = to >= PROC_TOTAL;
 }
 
 function renderProcedures() {
   const box = $('procList');
   if (!box) return;
   if (!PROCEDURES.length) {
-    box.innerHTML = '<div class="msg ok">Chưa có thủ tục nào. Bấm "Thêm thủ tục mới" bên dưới để khai báo.</div>';
+    box.innerHTML = '<div class="msg ok">Chưa có thủ tục nào. Bấm "Nhập thủ tục từ Cổng DVC" để tải về, hoặc "Thêm thủ tục mới" bên dưới để khai báo.</div>';
     return;
   }
   const rows = PROCEDURES.map(function (p) {
@@ -792,12 +875,21 @@ function renderProcedures() {
     if (p.desk) info.push('Bàn: ' + escapeHtml(p.desk));
     if (p.phone) info.push('ĐT: ' + escapeHtml(p.phone));
     if (p.office_hours) info.push('Giờ: ' + escapeHtml(p.office_hours));
+    if (p.level) info.push('Mức độ: ' + escapeHtml(p.level));
+    if (p.category) info.push('Lĩnh vực: ' + escapeHtml(p.category));
     return '<div class="card" style="margin:10px 0;box-shadow:none;border:1px solid #e2e8f0">' +
       '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start">' +
-        '<div><b>' + escapeHtml(p.name) + '</b> ' +
+        '<div style="display:flex;gap:8px;align-items:flex-start">' +
+          '<input type="checkbox" class="proc-chk" data-pid="' + p.id + '" style="margin-top:4px">' +
+          '<div><b>' + escapeHtml(p.name) + '</b> ' +
           (p.code ? '<span class="badge warn" style="margin-left:6px">' + escapeHtml(p.code) + '</span>' : '') +
           (p.active ? '' : '<span class="badge off" style="margin-left:6px">Đã ẩn</span>') +
+          (p.assigned ? '<span class="badge on" style="margin-left:6px">Đã gán</span>' :
+                        '<span class="badge warn" style="margin-left:6px">Chưa gán</span>') +
+          (p.source === 'dvc' ? '<span class="badge on" style="margin-left:6px">DVC</span>' : '') +
           (info.length ? '<div class="hint">' + info.join(' · ') + '</div>' : '') +
+          (p.summary ? '<div class="hint" style="margin-top:3px">' + escapeHtml(p.summary) + '</div>' : '') +
+          '</div>' +
         '</div>' +
         '<div><button class="sec" data-edit="' + p.id + '">Sửa</button> ' +
         '<button class="sec" data-del="' + p.id + '">Xoá</button></div>' +
@@ -811,6 +903,101 @@ function renderProcedures() {
   box.querySelectorAll('[data-del]').forEach(function (b) {
     b.onclick = function () { deleteProcedure(Number(b.dataset.del)); };
   });
+  box.querySelectorAll('.proc-chk').forEach(function (c) {
+    c.onchange = updateSelBar;
+  });
+  updateSelBar();
+}
+
+function updateSelBar() {
+  const checked = Array.from(document.querySelectorAll('.proc-chk:checked'));
+  PROC_SELECTED = checked.map(function (c) { return Number(c.dataset.pid); });
+  const bar = $('procBulkBar');
+  if (bar) bar.style.display = PROC_SELECTED.length ? 'flex' : 'none';
+  const cnt = $('procSelCount');
+  if (cnt) cnt.textContent = String(PROC_SELECTED.length);
+}
+
+/** Gán chuyên viên phụ trách cho các thủ tục đang chọn. */
+async function assignSelected() {
+  if (!PROC_SELECTED.length) {
+    $('procAssignMsg').textContent = '✖ Chưa chọn thủ tục nào';
+    return;
+  }
+  const data = {
+    officer: $('b.officer').value.trim(),
+    desk: $('b.desk').value.trim(),
+    phone: $('b.phone').value.trim(),
+    office_hours: $('b.office_hours').value.trim(),
+  };
+  if (!data.officer && !data.desk && !data.phone && !data.office_hours) {
+    $('procAssignMsg').textContent = '✖ Nhập ít nhất một thông tin (đồng chí / bàn / điện thoại)';
+    return;
+  }
+  try {
+    const j = await api('/api/admin/procedures/assign', {
+      method: 'POST',
+      body: JSON.stringify({ ids: PROC_SELECTED, data: data })
+    });
+    $('procAssignMsg').textContent = '✔ Đã gán ' + (j.count || 0) + ' thủ tục';
+    PROC_SELECTED = [];
+    loadProcedures();
+  } catch (e) {
+    $('procAssignMsg').textContent = '✖ ' + e.message;
+  }
+}
+
+/**
+ * Nhập thủ tục từ Cổng DVC.
+ *
+ * Lặp cho tới khi hết dữ liệu, mỗi vòng gọi 1 API với `startPage` tiếp
+ * theo. Lý do: một request Worker không nên kéo quá lâu (giới hạn CPU),
+ * và nếu import luôn từ trang 1 thì mỗi vòng chỉ ghi đè lại dữ liệu cũ.
+ */
+async function importFromDvc(maxPages) {
+  const btn = maxPages ? $('btnImportAll') : $('btnImport');
+  const msg = $('procImportMsg');
+  if (btn) btn.disabled = true;
+
+  let startPage = 1;
+  let totalImported = 0;
+  let totalRemote = 0;
+  let rounds = 0;
+
+  try {
+    // Mỗi vòng 5 trang (500 thủ tục) -> đủ nhanh nhưng không sát giới hạn.
+    const pagesPerRound = maxPages ? 5 : 5;
+    const maxRounds = maxPages ? 20 : 20;
+
+    while (rounds < maxRounds) {
+      if (msg) msg.textContent = '⏳ Đang tải từ Cổng DVC (trang ' + startPage + ')…';
+      const j = await api('/api/admin/procedures/import', {
+        method: 'POST',
+        body: JSON.stringify({ startPage: startPage, maxPages: pagesPerRound })
+      });
+      rounds += 1;
+      totalImported += j.imported || 0;
+      totalRemote = j.total || totalRemote;
+
+      if (j.done || !j.nextPage) {
+        if (msg) msg.textContent = '✔ Đã nhập ' + totalImported + ' thủ tục / tổng ' + totalRemote + ' — hoàn tất';
+        break;
+      }
+      startPage = j.nextPage;
+      if (!maxPages) {
+        if (msg) msg.textContent = '⏳ Đang tải… (' + totalImported + ' thủ tục) trang ' + startPage;
+      }
+    }
+    if (rounds >= maxRounds && startPage) {
+      if (msg) msg.textContent = '⏳ Đã nhập ' + totalImported + ' thủ tục — bấm lại để tiếp tục từ trang ' + startPage;
+    }
+    PROC_PAGE = 0;
+    loadProcedures();
+  } catch (e) {
+    if (msg) msg.textContent = '✖ ' + e.message;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function escapeHtml(s) {
@@ -836,7 +1023,6 @@ function editProcedure(id) {
   const target = $('procFormTitle').closest('details');
   if (target) { target.open = true; target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 }
-
 async function deleteProcedure(id) {
   const p = PROCEDURES.find(function (x) { return x.id === id; });
   if (!p) return;
@@ -958,6 +1144,27 @@ document.addEventListener('DOMContentLoaded', function () {
   $('regZbWebhook').onclick = registerZaloBotWebhook;
   $('procSaveBtn').onclick = saveProcedure;
   $('procResetBtn').onclick = resetProcForm;
+  $('btnImport').onclick = function () { importFromDvc(10); };
+  $('btnImportAll').onclick = function () { importFromDvc(50); };
+  $('btnReloadProc').onclick = function () { PROC_PAGE = 0; loadProcedures(); };
+  $('btnAssign').onclick = assignSelected;
+  $('btnClearSel').onclick = function () {
+    document.querySelectorAll('.proc-chk:checked').forEach(function (c) { c.checked = false; });
+    updateSelBar();
+  };
+  $('procPrev').onclick = function () {
+    if (PROC_PAGE > 0) { PROC_PAGE -= 1; loadProcedures(); }
+  };
+  $('procNext').onclick = function () {
+    PROC_PAGE += 1; loadProcedures();
+  };
+  // Tìm kiếm: debounce 300ms để không gọi API liên tục khi gõ.
+  var procSearchTimer = null;
+  $('procSearch').addEventListener('input', function () {
+    clearTimeout(procSearchTimer);
+    procSearchTimer = setTimeout(function () { PROC_PAGE = 0; loadProcedures(); }, 300);
+  });
+  $('procFilter').onchange = function () { PROC_PAGE = 0; loadProcedures(); };
   $('userAddBtn').onclick = addUser;
   $('pwBtn').onclick = changePw;
 

@@ -169,7 +169,52 @@ Vẫn ở **Messenger → Cài đặt API Messenger**, cuộn lên mục **1. Đ
 3. Kiểm tra bằng cách mở tab Ẩn danh (Incognito), dán URL vào — phải trả về HTTP 200
 
 Tiếp theo ở mục **Đăng ký các trường** (Subscribe Fields):
-→ Tick **`messages`** → bấm **Đăng ký** (Subscribe)
+→ Tick **CẢ 3** mục rồi bấm **Đăng ký** (Subscribe):
+
+| Trường | Bắt sự kiện nào |
+|--------|-----------------|
+| `messages` | Tin nhắn thường của người dân |
+| `messaging_postbacks` | Nút "Bắt đầu" (Get Started) — bot chào ngay |
+| `messaging_optins` | Người dân bấm nút "Nhắn tin" từ m.me / Chat Plugin / website |
+
+> ⚠️ Thiếu `messaging_postbacks` hoặc `messaging_optins` là nguyên nhân phổ biến nhất
+> khiến **người dân bấm "Nhắn tin" mà bot im lặng** — vì lúc đó Meta gửi sự kiện
+> postback/optin, không phải tin nhắn.
+
+---
+
+## BƯỚC 7b — Cài nút "Bắt đầu" + câu hỏi gợi ý cho Page (GIỜ CHÀO NGAY)
+
+Khi người dân bấm nút **"Nhắn tin"** trên trang Facebook của UBND, Meta mở cửa sổ
+Messenger. Nếu Page **chưa có** cấu hình bên dưới, cửa sổ đó **trống trơn** →
+người dân tưởng bot chết, không ai nhắn được.
+
+Cần cài 2 thứ trong **Meta Business Suite → Inbox → Messenger**:
+
+1. **Greeting / "Bắt đầu" (Get Started)**: Meta gửi postback `GET_STARTED` về webhook
+   → bot tự động gửi lời chào + nút bấm nhanh.
+2. **Ice breakers** (câu hỏi gợi ý): hiện ngay trên màn hình mở chat, người dân
+   bấm 1 cái là gửi tin luôn.
+
+### Cách cài nhanh bằng script
+
+```bash
+cd worker
+node scripts/facebook-greeting.mjs --user-token "EAA..."
+```
+
+> ⚠️ `--user-token` phải là **USER TOKEN** (token đăng nhập tài khoản quản trị Page),
+> **không phải** Page Access Token. Meta yêu cầu tài khoản có quyền admin Page
+> mới cho cài `get_started` / `ice_breakers`.
+> Lấy token ở **Meta for Developers → Messenger → Settings → Generate token**.
+> Token này chỉ dùng 1 lần để cài, xong có thể thu hồi.
+
+### Cách cài bằng giao diện
+
+Meta Business Suite → **Inbox** → mục **Messenger** → **Tự động**:
+- **Greeting** (Lời chào): bật, gõ lời chào, chọn nút bấm → **Đăng ký** (Start Chat).
+- **Trả lời tức thì** (Instant replies): tạo câu trả lời tự động với từ khóa
+  `bắt đầu`, `start`, `chào`, `hello` → trả lời lời chào.
 
 ---
 

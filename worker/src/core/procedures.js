@@ -24,6 +24,19 @@ export const PROCEDURE_FIELDS = [
   'portal_url',
   'sort_order',
   'active',
+  // -- Thủ tục import từ Cổng DVC --
+  'dvc_id',
+  'level',
+  'category',
+  'agency',
+  'citizen_url',
+  'summary',
+  'source',
+  'assigned',
+  // Mã trường hợp hành chính — một procedure_id có thể có nhiều case_code.
+  'case_code',
+  // Bản bỏ dấu của `name` — app tự sinh, admin không cần nhập.
+  'name_noaccent',
 ];
 
 /** Trường bắt buộc phải có. */
@@ -49,6 +62,8 @@ export function sanitizeProcedure(input = {}, { partial = false } = {}) {
       out[f] = null;
     } else if (f === 'active' || f === 'sort_order') {
       out[f] = f === 'sort_order' ? Number(v) || 0 : v ? 1 : 0;
+    } else if (f === 'assigned') {
+      out[f] = v ? 1 : 0;
     } else {
       const s = String(v).trim();
       out[f] = s === '' ? null : s;
@@ -77,6 +92,15 @@ export function rowToProcedure(row) {
     description: row.description || '',
     docs_url: row.docs_url || '',
     portal_url: row.portal_url || '',
+    dvc_id: row.dvc_id || '',
+    case_code: row.case_code || '',
+    level: row.level || '',
+    category: row.category || '',
+    agency: row.agency || '',
+    citizen_url: row.citizen_url || '',
+    summary: row.summary || '',
+    source: row.source || 'manual',
+    assigned: !!row.assigned,
     sort_order: row.sort_order ?? 0,
     active: !!row.active,
     created_at: row.created_at,
@@ -94,6 +118,212 @@ export async function listProcedures(db, { onlyActive = false } = {}) {
   return (res?.results || []).map(rowToProcedure);
 }
 
+/**
+ * Lấy thủ tục theo bộ lọc (dùng cho admin lọc theo trạng thái gán).
+ *
+ * @param {object} db
+ * @param {object} opts
+ * @param {string} opts.q      - từ khoá tìm trong tên/mã/lĩnh vực
+ * @param {string} opts.filter - 'all' | 'assigned' | 'unassigned'
+ * @param {number} opts.limit
+ * @param {number} opts.offset
+ */
+export async function queryProcedures(db, { q = '', filter = 'all', limit = 100, offset = 0 } = {}) {
+  if (!db) return { rows: [], total: 0 };
+  const where = [];
+  const binds = [];
+
+  if (filter === 'assigned') where.push('assigned = 1');
+  else if (filter === 'unassigned') where.push('assigned = 0');
+
+  const kw = String(q || '').trim();
+  if (kw) {
+    // LIKE với %kw% -> khớp cả có dấu lẫn không dấu? Không. Nên dùng
+    // "LIKE ... COLLATE NOCASE" cho tiếng Việt có dấu, và thêm biến thể
+    // không dấu để người dùng gõ "ho khau" vẫn ra "hộ khẩu".
+    const like = `%${kw.replace(/[%_]/g, '')}%`;
+    const likeNoAccent = `%${stripAccents(kw).replace(/[%_]/g, '')}%`;
+    where.push(
+      '(name LIKE ? COLLATE NOCASE OR code LIKE ? COLLATE NOCASE OR category LIKE ? COLLATE NOCASE' +
+        ' OR officer LIKE ? COLLATE NOCASE OR name_noaccent LIKE ? COLLATE NOCASE)'
+    );
+    binds.push(like, like, like, like, likeNoAccent);
+  }
+
+  const clause = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+  const totalRes = await db
+    .prepare(`SELECT COUNT(*) AS n FROM procedures ${clause}`)
+    .bind(...binds)
+    .first();
+  const total = totalRes?.n ?? 0;
+
+  const res = await db
+    .prepare(
+      `SELECT * FROM procedures ${clause}
+       ORDER BY assigned ASC, sort_order ASC, id ASC
+       LIMIT ? OFFSET ?`
+    )
+    .bind(...binds, Number(limit) || 100, Number(offset) || 0)
+    .all();
+
+  return { rows: (res?.results || []).map(rowToProcedure), total };
+}
+
+/**
+ * Import hàng loạt thủ tục từ Cổng DVC vào D1.
+ *
+ * Dùng `INSERT ... ON CONFLICT(dvc_id) DO UPDATE` để:
+ *   - chạy lại nhiều lần không tạo bản trùng,
+ *   - cập nhật tên/mã/link mới nhất,
+ *   - **KHÔNG** ghi đè các trường do admin nhập (officer, desk, phone...).
+ *
+ * VÌ SAO CẦN GIỮ NGUYÊN PHẦN ADMIN: admin đã gán chuyên viên cho thủ tục,
+ * nếu import lại xoá mất thì công cốc mất thông tin liên hệ.
+ */
+export async function importProcedures(db, items) {
+  if (!db || !items?.length) return { ok: true, imported: 0, skipped: 0 };
+
+  const cols = [
+    'name',
+    'code',
+    'dvc_id',
+    'case_code',
+    'level',
+    'category',
+    'agency',
+    'citizen_url',
+    'portal_url',
+    'summary',
+    'source',
+    'name_noaccent',
+  ];
+  let imported = 0;
+  let skipped = 0;
+
+  // D1 giới hạn 100 biến bind cho MỘT câu lệnh.
+  // 11 cột -> tối đa 8 dòng/câu (8*11 = 88 <= 100). Chunk 40 sẽ vượt
+  // giới hạn và câu lệnh bị từ chối -> phải chia nhỏ.
+  const CHUNK = 8;
+
+  // Gom các câu lệnh rồi gửi MỘT lần bằng db.batch() -> nhanh hơn
+  // nhiều so với gọi .run() tuần tự (mỗi lần là 1 round-trip).
+  const statements = [];
+  for (let i = 0; i < items.length; i += CHUNK) {
+    const slice = items.slice(i, i + CHUNK);
+    const values = [];
+    // Mỗi dòng: 11 cột dữ liệu + active=1 + assigned=0 -> 13 giá trị.
+    const rowPlaceholders = `(${cols.map(() => '?').join(', ')}, 1, 0)`;
+    const placeholders = slice.map(() => rowPlaceholders).join(', ');
+    for (const it of slice) {
+      values.push(
+        it.name || '',
+        it.code || null,
+        it.dvc_id || null,
+        it.case_code || '',
+        it.level || null,
+        it.category || null,
+        it.agency || null,
+        it.citizen_url || null,
+        it.portal_url || null,
+        it.summary || null,
+        'dvc',
+        stripAccents(it.name || '').toLowerCase()
+      );
+    }
+    const sql =
+      `INSERT INTO procedures (${cols.join(', ')}, active, assigned) ` +
+      `VALUES ${placeholders} ` +
+      `ON CONFLICT(dvc_id, case_code) DO UPDATE SET ` +
+      `name=excluded.name, code=excluded.code, level=excluded.level, ` +
+      `category=excluded.category, agency=excluded.agency, ` +
+      `citizen_url=excluded.citizen_url, portal_url=excluded.portal_url, ` +
+      `summary=COALESCE(procedures.summary, excluded.summary), ` +
+      `name_noaccent=excluded.name_noaccent, ` +
+      `updated_at=datetime('now')`;
+
+    statements.push(db.prepare(sql).bind(...values));
+  }
+
+  try {
+    if (statements.length) await db.batch(statements);
+    imported = items.length;
+  } catch (err) {
+    // Batch thất bại -> thử lại từng câu để biết chính xác câu nào lỗi
+    // và vẫn ghi được phần lớn dữ liệu.
+    console.error('[import] batch failed, retry từng chunk:', String(err?.message || err));
+    for (const st of statements) {
+      try {
+        await st.run();
+        imported += 1;
+      } catch (e2) {
+        skipped += 1;
+        console.error('[import] chunk failed:', String(e2?.message || e2));
+      }
+    }
+  }
+
+  if (skipped) {
+    console.error(`[import] ${skipped}/${items.length} bản ghi bị bỏ qua do lỗi SQL`);
+  }
+  return { ok: true, imported, skipped };
+}
+
+/**
+ * Gán chuyên viên phụ trách cho nhiều thủ tục cùng lúc.
+ *
+ * @param {object} db
+ * @param {number[]} ids   - danh sách id thủ tục
+ * @param {object} data    - { officer, desk, phone, office_hours }
+ */
+export async function assignOfficer(db, ids, data = {}) {
+  if (!db || !ids?.length) return { ok: false, error: 'Không có thủ tục nào được chọn' };
+
+  const sets = [];
+  const binds = [];
+  for (const f of ['officer', 'desk', 'phone', 'office_hours']) {
+    if (!(f in data)) continue;
+    const v = data[f];
+    sets.push(`${f} = ?`);
+    binds.push(v === null || v === undefined || v === '' ? null : String(v).trim());
+  }
+  if (!sets.length) return { ok: false, error: 'Không có thông tin để gán' };
+
+  // `assigned` = 1 khi đã có ít nhất đồng chí phụ trách.
+  sets.push('assigned = CASE WHEN ? IS NOT NULL AND ? != \'\' THEN 1 ELSE assigned END');
+  binds.push(data.officer ?? null, data.officer ?? null);
+
+  const placeholders = ids.map(() => '?').join(', ');
+  try {
+    await db
+      .prepare(
+        `UPDATE procedures SET ${sets.join(', ')}, updated_at = datetime('now')
+         WHERE id IN (${placeholders})`
+      )
+      .bind(...binds, ...ids.map(Number))
+      .run();
+    return { ok: true, count: ids.length };
+  } catch (err) {
+    return { ok: false, error: String(err?.message || err) };
+  }
+}
+
+/** Thống kê nhanh số thủ tục đã gán / chưa gán. */
+export async function procedureStats(db) {
+  if (!db) return { total: 0, assigned: 0, unassigned: 0 };
+  const res = await db
+    .prepare(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN assigned = 1 THEN 1 ELSE 0 END) AS assigned
+       FROM procedures`
+    )
+    .first();
+  const total = res?.total ?? 0;
+  const assigned = res?.assigned ?? 0;
+  return { total, assigned, unassigned: total - assigned };
+}
+
 /** Lấy một thủ tục theo id. */
 export async function getProcedureById(db, id) {
   if (!db) return null;
@@ -105,6 +335,11 @@ export async function getProcedureById(db, id) {
 export async function insertProcedure(db, input) {
   const { data, error } = sanitizeProcedure(input);
   if (error) return { ok: false, error };
+
+  // Tự động ghi bản bỏ dấu để tìm kiếm không dấu hoạt động.
+  if ('name' in data && data.name) {
+    data.name_noaccent = stripAccents(data.name).toLowerCase();
+  }
 
   const cols = PROCEDURE_FIELDS.filter((f) => f in data);
   const vals = cols.map((f) => data[f]);
@@ -127,6 +362,11 @@ export async function updateProcedure(db, id, input) {
   // partial = true: chỉ cập nhật trường được gửi lên, không đòi tên.
   const { data, error } = sanitizeProcedure(input, { partial: true });
   if (error) return { ok: false, error };
+
+  // Đồng bộ bản bỏ dấu khi tên thay đổi.
+  if ('name' in data && data.name) {
+    data.name_noaccent = stripAccents(data.name).toLowerCase();
+  }
 
   const cols = PROCEDURE_FIELDS.filter((f) => f in data);
   if (!cols.length) return { ok: false, error: 'Không có gì để cập nhật' };
@@ -174,6 +414,20 @@ function norm(s) {
 }
 
 /**
+ * Bỏ dấu tiếng Việt, giữ nguyên chữ hoa/thường và khoảng trắng.
+ *
+ * Dùng cho cột `name_noaccent` để tìm kiếm "ho khau" ra "Hộ khẩu".
+ * `đ`/`Đ` không có dạng phân rã chuẩn trong Unicode nên phải thay thế tay.
+ */
+export function stripAccents(s) {
+  return String(s || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
+
+/**
  * Dice coefficient giữa 2 chuỗi từ (theo tập từ).
  *  = 2|A∩B| / (|A|+|B|)   -> 0..1
  *
@@ -198,6 +452,11 @@ function diceCoefficient(aWords, bWords) {
  * Dùng để bot trả lời câu hỏi của người dân về thủ tục RIÊNG của xã
  * (ví dụ "thủ tục ABC do đồng chí ... bàn số ... số điện thoại ...").
  *
+ * VÌ SAO KHÔNG LOAD TOÀN BẢNG: bảng có ~3.500 thủ tục sau khi import từ
+ * Cổng DVC. `SELECT *` mỗi lượt sẽ tốn băng thông và chậm. Thay vào đó
+ * dùng SQL lọc trước (LIKE trên name/code/keywords/name_noaccent), rồi
+ * mới tính điểm Dice trên tập ứng viên nhỏ.
+ *
  * TRẢ VỀ: mảng { procedure, score, dice, exact } — sắp xếp giảm dần.
  */
 export async function searchLocalProcedures(db, query, { limit = 5 } = {}) {
@@ -205,12 +464,50 @@ export async function searchLocalProcedures(db, query, { limit = 5 } = {}) {
   const q = String(query || '').trim();
   if (!q) return [];
 
-  const all = await listProcedures(db, { onlyActive: true });
   const nq = norm(q);
   const qWords = nq.split(' ').filter((w) => w.length >= 2);
 
+  // 1) Lọc rộng bằng SQL để lấy tập ứng viên nhỏ.
+  //    Điều kiện: mọi từ khoá trong câu hỏi phải xuất hiện ở ít nhất
+  //    một trong các trường (tên, mã, từ khoá do admin khai báo).
+  const binds = [];
+  const clauses = [];
+  for (const w of qWords.slice(0, 8)) {
+    const like = `%${w}%`;
+    const likeNa = `%${stripAccents(w).toLowerCase()}%`;
+    clauses.push(
+      '(name LIKE ? COLLATE NOCASE OR code LIKE ? COLLATE NOCASE' +
+        ' OR keywords LIKE ? COLLATE NOCASE OR name_noaccent LIKE ? COLLATE NOCASE)'
+    );
+    binds.push(like, like, like, likeNa);
+  }
+  // Câu hỏi ngắn (< 2 từ) -> lấy theo từ khoá admin khai báo.
+  if (!clauses.length) {
+    clauses.push('(keywords LIKE ? COLLATE NOCASE OR name_noaccent LIKE ? COLLATE NOCASE)');
+    binds.push(`%${nq}%`, `%${stripAccents(q).toLowerCase()}%`);
+  }
+
+  let candidates;
+  try {
+    const res = await db
+      .prepare(
+        `SELECT * FROM procedures
+         WHERE active = 1 AND (${clauses.join(' AND ')})
+         LIMIT 200`
+      )
+      .bind(...binds)
+      .all();
+    candidates = res?.results || [];
+  } catch (_) {
+    // D1 lỗi (vd thiếu cột name_noaccent) -> fallback về tải toàn bảng.
+    const all = await listProcedures(db, { onlyActive: true });
+    candidates = all;
+  }
+
   const scored = [];
-  for (const p of all) {
+  for (const row of candidates) {
+    const p = rowToProcedure(row);
+    if (!p) continue;
     const nameN = norm(p.name);
     const codeN = norm(p.code);
     const kwN = norm(p.keywords);
@@ -248,6 +545,9 @@ export async function searchLocalProcedures(db, query, { limit = 5 } = {}) {
     // 4. Độ tương đồng từ (Dice) — thang điểm chính.
     score += Math.round(dice * 60);
 
+    // 5. Đã gán chuyên viên -> ưu tiên (đây là câu trả lời hữu ích nhất).
+    if (p.assigned) score += 25;
+
     scored.push({ procedure: p, score, dice, exact });
   }
 
@@ -279,8 +579,9 @@ export function localProcedureToText(p) {
  * Định dạng thủ tục của xã cho người dùng đọc (bản tất định, không AI).
  * Cũng bỏ qua mọi trường rỗng.
  */
-export function localProcedureToReply(p) {
+export function localProcedureToReply(p, opts = {}) {
   if (!p) return '';
+  const office = opts.officeName || '';
   const lines = [];
   lines.push(`*${p.name || 'Thủ tục'}*`);
   if (p.code) lines.push(`Mã: ${p.code}`);
@@ -288,6 +589,13 @@ export function localProcedureToReply(p) {
     lines.push('');
     lines.push(p.description);
   }
+
+  // Tóm tắt từ Cổng DVC (khi thủ tục được import từ đó).
+  if (p.summary && p.summary !== p.description) {
+    lines.push('');
+    lines.push(p.summary);
+  }
+
   const info = [];
   if (p.officer) info.push(`Đồng chí phụ trách: ${p.officer}`);
   if (p.desk) info.push(`Bàn số: ${p.desk}`);
@@ -297,7 +605,15 @@ export function localProcedureToReply(p) {
     lines.push('');
     for (const i of info) lines.push(`• ${i}`);
   }
+
+  // Câu mời đến gặp — đúng như yêu cầu người dân: biết gặp ai, ở đâu.
+  if (p.officer && office) {
+    lines.push('');
+    lines.push(`Anh/chị hãy đến gặp ${p.officer}${p.desk ? ` tại ${p.desk}` : ''} tại ${office}.`);
+  }
+
   const links = [];
+  if (p.citizen_url) links.push(`📝 Nộp trực tuyến: ${p.citizen_url}`);
   if (p.docs_url) links.push(`📄 Hướng dẫn: ${p.docs_url}`);
   if (p.portal_url) links.push(`🔗 Cổng DVC Quốc gia: ${p.portal_url}`);
   if (links.length) {

@@ -19,7 +19,7 @@ import {
   mergeSecretFields,
   channelStatus,
 } from './core/config.js';
-import { makeEngines, handleMessage } from './core/conversation.js';
+import { makeEngines, handleMessage, buildGreetingQuickReplies } from './core/conversation.js';
 import * as fb from './channels/facebook.js';
 import * as zbot from './channels/zalo-bot.js';
 import * as zoa from './channels/zalo-oa.js';
@@ -42,7 +42,12 @@ import {
   insertProcedure,
   updateProcedure,
   deleteProcedure,
+  queryProcedures,
+  importProcedures,
+  assignOfficer,
+  procedureStats,
 } from './core/procedures.js';
+import { importWardProcedures } from './core/dvc-import.js';
 import ADMIN_HTML from './pages/admin.html';
 import CHAT_HTML from './pages/chat.html';
 import PRIVACY_HTML from './pages/privacy.html';
@@ -336,6 +341,21 @@ async function handleZaloOaWebhook(request, env, cfg, ctx) {
   return ok({ handled: events.length });
 }
 
+/**
+ * API lời chào cho web widget.
+ *
+ * VÌ SAO TÁCH RIÊNG: widget cần lời chào + nút bấm nhanh NGAY khi mở,
+ * không phải sau khi gửi câu hỏi. Trước đây widget gọi /trogiup -> chỉ
+ * nhận được danh sách trợ giúp, không có "Xin chào" -> người dùng tưởng bot lỗi.
+ */
+async function handleGreetingApi(env, cfg) {
+  const greeting = cfg.greeting;
+  return ok({
+    messages: [greeting],
+    quickReplies: buildGreetingQuickReplies(),
+  });
+}
+
 /** API chat cho web widget. */
 async function handleChatApi(request, env, cfg) {
   let body;
@@ -525,7 +545,101 @@ async function handleAdminApi(request, env, cfg, pathname) {
   // ------------------------------------------------------------------
   if (pathname === '/api/admin/procedures' && request.method === 'GET') {
     if (!adminUser) return fail('Unauthorized', 401);
-    return ok({ procedures: await listProcedures(env.DB) });
+    const url = new URL(request.url);
+    const q = url.searchParams.get('q') || '';
+    const filter = url.searchParams.get('filter') || 'all';
+    const limit = Number(url.searchParams.get('limit')) || 100;
+    const offset = Number(url.searchParams.get('offset')) || 0;
+    const result = await queryProcedures(env.DB, { q, filter, limit, offset });
+    return ok({
+      procedures: result.rows,
+      total: result.total,
+      stats: await procedureStats(env.DB),
+    });
+  }
+
+  /**
+   * Import thủ tục của xã từ Cổng DVC Quốc gia.
+   *
+   * Admin bấm "Nhập từ Cổng DVC" -> Worker gọi gateway, tải các trang
+   * thủ tục áp dụng tại xã, rồi ghi vào D1. Chạy lại nhiều lần vẫn an
+   * toàn (ON CONFLICT dvc_id) và KHÔNG ghi đè phần admin đã nhập.
+   */
+  if (pathname === '/api/admin/procedures/import' && request.method === 'POST') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    let body = {};
+    try {
+      body = await request.json();
+    } catch (_) {
+      body = {};
+    }
+    const startPage = Math.max(1, Number(body?.startPage) || 1);
+    const maxPages = Math.min(60, Math.max(1, Number(body?.maxPages) || 20));
+    const wardCode = String(body?.wardCode || cfg.defaultWardCode || '').trim();
+
+    if (!wardCode) return fail('Thiếu mã xã/phường');
+
+    try {
+      const { dvc } = makeEngines(cfg, env);
+      const r = await importWardProcedures({
+        dvc,
+        db: env.DB,
+        wardCode,
+        startPage,
+        maxPages,
+        importFn: importProcedures,
+      });
+      if (!r.ok) return fail(r.error || 'Import thất bại', 502);
+      await logEvent(env, {
+        channel: 'admin',
+        type: 'procedures_imported',
+        imported: r.imported,
+        pages: r.pages,
+      });
+      return ok({
+        imported: r.imported,
+        pages: r.pages,
+        nextPage: r.nextPage,
+        done: r.done,
+        total: r.total,
+        stats: await procedureStats(env.DB),
+      });
+    } catch (err) {
+      return fail('Lỗi khi import: ' + String(err?.message || err), 500);
+    }
+  }
+
+  /**
+   * Gán chuyên viên phụ trách cho nhiều thủ tục cùng lúc.
+   *
+   * YÊU CẦU: "lấy all thủ tục của xã, sau đó gán thủ tục cho các chuyên
+   * viên phù hợp". Admin tick nhiều dòng -> gán cùng đồng chí/bàn/điện
+   * thoại trong một lần bấm.
+   */
+  if (pathname === '/api/admin/procedures/assign' && request.method === 'POST') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    let body;
+    try {
+      body = await request.json();
+    } catch (_) {
+      return fail('Body phải là JSON');
+    }
+    const ids = Array.isArray(body?.ids) ? body.ids.map(Number).filter(Boolean) : [];
+    if (!ids.length) return fail('Chưa chọn thủ tục nào');
+    const r = await assignOfficer(env.DB, ids, body?.data || body || {});
+    if (!r.ok) return fail(r.error, 400);
+    await logEvent(env, {
+      channel: 'admin',
+      type: 'procedures_assigned',
+      count: r.count,
+    });
+    return ok({ count: r.count, stats: await procedureStats(env.DB) });
+  }
+
+  /** Thống kê thủ tục: tổng / đã gán / chưa gán. */
+  if (pathname === '/api/admin/procedures/stats' && request.method === 'GET') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    return ok({ stats: await procedureStats(env.DB) });
   }
 
   if (pathname === '/api/admin/procedures' && request.method === 'POST') {
@@ -700,14 +814,37 @@ async function handleAdminApi(request, env, cfg, pathname) {
     }
 
     if (target === 'ai') {
-      const { ai } = makeEngines(cfg, env);
+      // Cho phép test với config ĐANG GÕ trong form (chưa bấm "Lưu"),
+      // nếu không thì admin vừa tạo API key mới bấm "Kiểm tra AI" sẽ bị
+      // test bằng config cũ -> tưởng key sai.
+      const testCfg = body?.config?.ai
+        ? { ...cfg, ai: mergeSecretFields({ ai: body.config.ai }, cfg).ai }
+        : cfg;
+      const { ai } = makeEngines(testCfg, env);
       if (!ai.hasGemini && !ai.hasCfAi) {
         results.ai = { ok: false, error: 'Chưa cấu hình API key AI nào' };
       } else {
         const r = await ai.ask('Xin chào, bạn khoẻ không?', 'Không có dữ liệu tra cứu.');
-        results.ai = r.text
-          ? { ok: true, detail: `Phản hồi qua ${r.engine}: "${r.text.slice(0, 80)}"` }
-          : { ok: false, error: 'AI không phản hồi (có thể hết quota hoặc sai API key)' };
+        if (r.text) {
+          // Cảnh báo nếu provider chính đang lỗi nhưng provider dự phòng đã đáp.
+          // Ví dụ: admin chọn Gemini + sai key, Workers AI đáp giúp -> vẫn phải
+          // báo Gemini hỏng, nếu không admin sẽ tưởng AI hoàn hảo.
+          const warnings = [];
+          const primary = testCfg.ai.provider;
+          if (primary === 'gemini' && ai.errors?.gemini && r.engine !== 'gemini') {
+            warnings.push(`Gemini đang lỗi: ${ai.errors.gemini}`);
+          }
+          if (primary === 'workers-ai' && ai.errors?.['cf-binding'] && r.engine !== 'workers-ai') {
+            warnings.push(`Workers AI đang lỗi: ${ai.errors['cf-binding']}`);
+          }
+          results.ai = {
+            ok: warnings.length === 0,
+            detail: `Phản hồi qua ${r.engine}: "${r.text.slice(0, 80)}"`,
+            warning: warnings.join(' | ') || null,
+          };
+        } else {
+          results.ai = { ok: false, error: ai.lastError || 'AI không phản hồi (có thể hết quota hoặc sai API key)' };
+        }
       }
     }
 
@@ -847,6 +984,9 @@ export default {
       }
       if (pathname === '/api/chat' && request.method === 'POST') {
         return await handleChatApi(request, env, cfg);
+      }
+      if (pathname === '/api/greeting' && request.method === 'GET') {
+        return await handleGreetingApi(env, cfg);
       }
       if (pathname.startsWith('/api/admin/')) {
         return await handleAdminApi(request, env, cfg, pathname);

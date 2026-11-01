@@ -126,11 +126,15 @@ export async function sendMessages(cfg, recipientId, messages, quickReplies = []
 /**
  * Trích xuất sự kiện message từ payload webhook.
  *
- * Xử lý 2 loại sự kiện:
+ * Xử lý 3 loại sự kiện:
  * 1. `messaging.message` — tin nhắn thường (kèm quick_reply payload).
  * 2. `messaging.postback` — người dùng bấm nút "Bắt đầu" (Get Started)
  *    của Messenger. Sự kiện này KHÔNG có `message.text`, nếu không xử lý
  *    thì bot im lặng, người dùng tưởng bot chết.
+ * 3. `messaging.optins` — người dùng nhấn nút "Bắt đầu" / đồng ý nhận tin
+ *    từ liên kết m.me, trang web, hoặc nút Chat Plugin. Đây chính là sự
+ *    kiện sinh ra khi user CLICK VÀO NÚT "NHẮN TIN" trên trang Page /
+ *    website -> bot cần chào ngay.
  */
 export function extractMessages(payload) {
   const out = [];
@@ -147,6 +151,27 @@ export function extractMessages(payload) {
           quickReplyPayload: null,
           isPostback: true,
           postbackPayload: payloadVal,
+        });
+        continue;
+      }
+
+      // 2) Người dùng nhấn nút "Bắt đầu"/opt-in từ liên kết m.me hoặc
+      //    Chat Plugin. Cũng là sự kiện "user vừa bấm vào nhắn tin".
+      //
+      //    LƯU Ý: `messaging.optins` là MẢNG (mỗi phần tử 1 opt-in),
+      //    không phải object đơn. Lấy phần tử đầu.
+      if (messaging.optins) {
+        const optin = Array.isArray(messaging.optins) ? messaging.optins[0] : messaging.optins;
+        if (!optin) continue;
+        out.push({
+          senderId: messaging.sender?.id,
+          text: 'bắt đầu',
+          messageId: optin.mid || null,
+          isEcho: false,
+          quickReplyPayload: null,
+          isPostback: true,
+          postbackPayload: optin.ref || 'OPTIN',
+          optinRef: optin.ref || null,
         });
         continue;
       }

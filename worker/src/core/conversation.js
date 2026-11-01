@@ -23,6 +23,7 @@ export function makeEngines(cfg, env = {}) {
     accountId: cfg.ai.cfAccountId,
     cfAiToken: cfg.ai.cfApiToken,
     model: cfg.ai.geminiModel,
+    provider: cfg.ai.provider,
     systemPrompt: cfg.ai.systemPrompt || DEFAULT_SYSTEM_PROMPT,
     // Binding Workers AI — dùng được miễn phí, không cần API token.
     aiBinding: env.AI || null,
@@ -137,7 +138,9 @@ export async function handleMessage({ dvc, ai, cfg, db = null, text, channel, hi
         // Trả về bản tất định (có đủ bàn số, số điện thoại) để người
         // dân thấy chính xác, không phụ thuộc AI có "diễn giải" mất thông tin.
         return {
-          messages: splitForChat(localProcedureToReply(p)),
+          messages: splitForChat(
+            localProcedureToReply(p, { officeName: cfg.officeName })
+          ),
           meta,
         };
       }
@@ -162,13 +165,28 @@ export async function handleMessage({ dvc, ai, cfg, db = null, text, channel, hi
       };
     }
 
-    // Không có dữ liệu -> trả fallback tất định
-    if (!ctx.text || !ctx.text.trim()) {
-      return { messages: [cfg.fallbackMessage], meta };
-    }
-
     // Bật AI: trả lời tự nhiên dựa trên ngữ cảnh
     const aiOn = channel?.aiEnabled !== false && cfg.ai.provider !== 'none';
+
+    // Không có thủ tục nào khớp -> VẪN gọi AI với ngữ cảnh rỗng.
+    //
+    // VÌ SAO: trước đây code trả thẳng fallbackMessage ở đây, nên câu hỏi
+    // ngoài phạm vi thủ tục (vd "hôm nay là ngày mấy", "thời tiết hôm nay")
+    // bị chặn trước khi tới AI -> người dùng thấy "chưa tìm thấy thủ tục
+    // phù hợp" dù AI hoạt động rất tốt. AI sẽ tự trả lời hoặc hướng dẫn
+    // về đúng phạm vi bot theo system prompt.
+    if (!ctx.text || !ctx.text.trim()) {
+      if (aiOn) {
+        const r = await ai.ask(input, buildNoDataContext(), { history });
+        if (r.text) {
+          meta.engine = r.engine;
+          meta.kind = ctx.kind;
+          return { messages: splitForChat(r.text.trim()), meta };
+        }
+      }
+      // AI lỗi -> trả fallback tất định (luôn hoạt động)
+      return { messages: [cfg.fallbackMessage], meta };
+    }
 
     // Danh sách nhiều thủ tục -> LUÔN hiển thị dạng có mã + link.
     // Không để AI viết lại danh sách vì AI hay làm mờ/bỏ mã, và người dùng
@@ -183,7 +201,9 @@ export async function handleMessage({ dvc, ai, cfg, db = null, text, channel, hi
     }
 
     if (aiOn) {
-      const r = await ai.ask(input, ctx.text, { history });
+      // Gắn thêm thông tin ngày tháng hiện tại vào ngữ cảnh để AI trả lời
+      // được câu hỏi kiểu "hồ sơ này còn hạn đến khi nào?" / "hôm nay là thứ mấy?"
+      const r = await ai.ask(input, withCurrentDate(ctx.text), { history });
       if (r.text) {
         meta.engine = r.engine;
         let out = r.text.trim();
@@ -202,6 +222,67 @@ export async function handleMessage({ dvc, ai, cfg, db = null, text, channel, hi
     meta.error = String(err?.message || err);
     return { messages: [cfg.errorMessage], meta };
   }
+}
+
+/**
+ * Ngữ cảnh cho trường hợp KHÔNG có thủ tục nào khớp.
+ *
+ * VÌ SAO CẦN: model AI không biết "hôm nay" là ngày nào — ngày trong
+ * thế giới thật không nằm trong dữ liệu huấn luyện. Nếu không đưa ngày
+ * hiện tại vào, câu hỏi "hôm nay là ngày mấy" sẽ bị AI trả lời sai
+ * hoặc bịa đặt.
+ *
+ * Ngày lấy theo giờ Việt Nam (UTC+7) vì bot phục vụ người dân xã Xuân Lãng.
+ */
+export function buildNoDataContext(now = new Date()) {
+  const d = vnDateParts(now);
+  return (
+    `DỮ LIỆU TRA CỨU:\n(Không có thủ tục nào khớp câu hỏi này)\n\n` +
+    currentDateBlock(d) +
+    `\nCÂU HỎI CỦA NGƯỜI DÙNG:\n(hãy trả lời dựa trên thông tin ngày tháng ở trên ` +
+    `và chuyên môn của bạn; nếu câu hỏi ngoài phạm vi thủ tục hành chính thì ` +
+    `hướng dẫn người dùng về việc tra cứu thủ tục hành chính)`
+  );
+}
+
+/** Tách phần ngày tháng giờ VN ra khỏi Date. */
+function vnDateParts(now = new Date()) {
+  // Giờ Việt Nam = UTC + 7
+  const vn = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  const days = [
+    'Chủ Nhật',
+    'Thứ Hai',
+    'Thứ Ba',
+    'Thứ Tư',
+    'Thứ Năm',
+    'Thứ Sáu',
+    'Thứ Bảy',
+  ];
+  return {
+    dow: days[vn.getUTCDay()],
+    d: vn.getUTCDate(),
+    m: vn.getUTCMonth() + 1,
+    y: vn.getUTCFullYear(),
+    hh: String(vn.getUTCHours()).padStart(2, '0'),
+    mm: String(vn.getUTCMinutes()).padStart(2, '0'),
+  };
+}
+
+/** Khối text mô tả thời gian hiện tại (tiếng Việt). */
+function currentDateBlock(d) {
+  return (
+    `THÔNG TIN THỜI GIAN HIỆN TẠI (giờ Việt Nam, UTC+7):\n` +
+    `Hôm nay là ${d.dow}, ngày ${d.d}/${d.m}/${d.y}. Thời gian hiện tại: ${d.hh}:${d.mm}.`
+  );
+}
+
+/**
+ * Gắn thông tin ngày tháng hiện tại vào ngữ cảnh thủ tục.
+ * Giúp AI trả lời được câu hỏi về thời gian (hạn chót, "hôm nay là thứ mấy").
+ */
+export function withCurrentDate(ctxText, now = new Date()) {
+  const d = vnDateParts(now);
+  return `${ctxText}\n\n${currentDateBlock(d)}`;
 }
 
 /**

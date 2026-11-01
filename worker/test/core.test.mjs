@@ -6,7 +6,7 @@
 import { DvcClient } from '../src/core/dvc.js';
 import { AiEngine } from '../src/core/ai.js';
 import { buildContext, findProcedures, splitForChat, truncate } from '../src/core/retrieve.js';
-import { handleMessage, formatDeterministic } from '../src/core/conversation.js';
+import { handleMessage, formatDeterministic, buildNoDataContext, withCurrentDate } from '../src/core/conversation.js';
 import {
   extractLocationAndKeyword,
   stripVN,
@@ -204,6 +204,35 @@ section('Hội thoại — lệnh');
   check('chi tiết có hồ sơ', /hồ sơ/i.test(r3.messages.join(' ')), r3.messages[0].slice(0, 120));
 }
 
+section('Hội thoại — lời chào khi user bấm "Nhắn tin"/"Bắt đầu"');
+{
+  // ĐÂY LÀ LỖI USER GẶP: bấm nút "Nhắn tin" trên Page -> Meta gửi
+  // postback/optin với text "bắt đầu" -> bot phải CHÀO, không phải đi
+  // tìm thủ tục (trước đây trả "chưa tìm thấy thủ tục").
+  const cfg = defaultConfig();
+  const ai = new AiEngine({});
+
+  for (const t of ['bắt đầu', 'Bắt đầu', 'hi', 'xin chào', 'Get Started']) {
+    const r = await handleMessage({ dvc, ai, cfg, text: t, channel: { id: 'facebook' } });
+    check(`"${t}" trả lời chào`, r.messages[0].includes('chào'), r.messages[0].slice(0, 80));
+    check(`"${t}" có nút bấm nhanh`, (r.quickReplies || []).length > 0, String((r.quickReplies || []).length));
+  }
+
+  // Lời chào riêng của kênh được ưu tiên hơn lời chào chung.
+  const rCh = await handleMessage({
+    dvc,
+    ai,
+    cfg,
+    text: 'bắt đầu',
+    channel: { id: 'facebook', greeting: 'Chào bạn, UBND xã Xuân Lãng!' },
+  });
+  check('lời chào riêng của kênh được ưu tiên', rCh.messages[0] === 'Chào bạn, UBND xã Xuân Lãng!', rCh.messages[0]);
+
+  // Tin nhắn rỗng (widget web gọi lúc mở) cũng phải ra lời chào.
+  const rEmpty = await handleMessage({ dvc, ai, cfg, text: '', channel: { id: 'web' } });
+  check('text rỗng -> lời chào', rEmpty.messages[0] === cfg.greeting, rEmpty.messages[0].slice(0, 80));
+}
+
 section('Định dạng deterministic');
 {
   const cfg = defaultConfig();
@@ -221,6 +250,74 @@ section('Xử lý lỗi');
   const r = await handleMessage({ dvc: badDvc, ai, cfg, text: 'đăng ký kết hôn', channel: { id: 't' } });
   check('API chết -> trả thông báo lỗi', r.messages[0] === cfg.errorMessage, r.messages[0]);
   check('ghi nhận lỗi trong meta', !!r.meta.error);
+}
+
+section('Ngữ cảnh ngày tháng (AI không tự biết hôm nay là ngày nào)');
+{
+  // 2026-11-01 00:30 UTC = 2026-11-01 07:30 giờ VN -> Chủ Nhật
+  const ctx = buildNoDataContext(new Date('2026-11-01T00:30:00Z'));
+  check('có ngày/tháng/năm', ctx.includes('1/11/2026'), ctx.slice(0, 200));
+  check('đúng thứ', ctx.includes('Chủ Nhật'), ctx.slice(0, 200));
+  check('có giờ', /\d{2}:\d{2}/.test(ctx));
+  check('nói rõ không có dữ liệu', /Không có thủ tục nào khớp/.test(ctx));
+
+  // Kiểm tra múi giờ VN: 2026-11-01 23:00 UTC = 2026-11-02 06:00 VN
+  const ctx2 = buildNoDataContext(new Date('2026-11-01T23:00:00Z'));
+  check('đã cộng +7 giờ (sang ngày mai)', ctx2.includes('2/11/2026'), ctx2.slice(0, 200));
+
+  const withDate = withCurrentDate('Tên: abc\nMã: 1.000894');
+  check('gắn ngày vào ngữ cảnh thủ tục', withDate.includes('1/11/2026'), withDate.slice(-150));
+  check('giữ nguyên phần dữ liệu gốc', withDate.startsWith('Tên: abc'), withDate.slice(0, 60));
+}
+
+section('Câu hỏi ngoài phạm vi vẫn tới được AI');
+{
+  const cfg = defaultConfig();
+  // AI giả lập: luôn trả lời
+  const fakeAi = {
+    ask: async (q, ctx) => ({ text: `AI trả lời cho "${q}"`, engine: 'fake' }),
+    hasGemini: true,
+    hasCfAi: true,
+    lastError: null,
+  };
+  // DVC rỗng -> không tìm thấy thủ tục nào -> ctx.text rỗng
+  const emptyDvc = {
+    searchProcedures: async () => ({ items: [], total: 0 }),
+    searchWards: async () => [],
+    searchProvinces: async () => [],
+    searchWardProcedures: async () => ({ items: [], total: 0 }),
+    getProcedure: async () => null,
+  };
+  const r = await handleMessage({
+    dvc: emptyDvc,
+    ai: fakeAi,
+    cfg,
+    text: 'hôm nay là ngày mấy',
+    channel: { id: 't', aiEnabled: true },
+  });
+  check('AI được gọi (không trả fallback)', r.meta.engine === 'fake', JSON.stringify(r.meta));
+  check('trả lời của AI', r.messages[0].includes('AI trả lời'), r.messages[0]);
+}
+
+section('Câu hỏi ngoài phạm vi + AI lỗi -> fallback tất định');
+{
+  const cfg = defaultConfig();
+  const deadAi = { ask: async () => ({ text: null, engine: 'none' }), hasGemini: true, hasCfAi: true };
+  const emptyDvc = {
+    searchProcedures: async () => ({ items: [], total: 0 }),
+    searchWards: async () => [],
+    searchProvinces: async () => [],
+    searchWardProcedures: async () => ({ items: [], total: 0 }),
+    getProcedure: async () => null,
+  };
+  const r = await handleMessage({
+    dvc: emptyDvc,
+    ai: deadAi,
+    cfg,
+    text: 'hôm nay là ngày mấy',
+    channel: { id: 't', aiEnabled: true },
+  });
+  check('vẫn trả fallback, không lỗi', r.messages[0] === cfg.fallbackMessage, r.messages[0]);
 }
 
 console.log(`\n${'='.repeat(46)}`);

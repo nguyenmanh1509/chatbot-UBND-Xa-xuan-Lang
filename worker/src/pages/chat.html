@@ -86,12 +86,26 @@ async function send(t) {
 
 document.getElementById('f').onsubmit = (e) => { e.preventDefault(); send(q.value); };
 
-// Lời chào
-fetch('/api/chat', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ text: '/trogiup', sessionId: sid })
-}).then(r => r.json()).then(j => { (j.messages || []).forEach((m) => add(m, 'bot')); });
+// Lời chào — gọi /api/greeting (lời chào thật + nút bấm nhanh).
+//
+// VÌ SAO KHÔNG DÙNG /trogiup: lệnh đó trả về DANH SÁCH trợ giúp, không phải
+// lời chào. Người dùng mở chatbot thấy ngay một bảng lệnh lạ lẫm mà
+// không có "Xin chào" -> tưởng bot bị lỗi.
+fetch('/api/greeting')
+  .then(r => r.json())
+  .then(j => {
+    (j.messages || []).forEach(m => add(m, 'bot'));
+    (j.quickReplies || []).forEach(q => {
+      const c = document.createElement('div');
+      c.className = 'chip';
+      c.textContent = q.title;
+      c.onclick = () => { q.value = q.payload || q.title; document.getElementById('f').requestSubmit(); };
+      chips.appendChild(c);
+    });
+  })
+  .catch(() => {
+    add('Xin chào anh/chị! Em là trợ lý tra cứu thủ tục hành chính UBND xã Xuân Lãng. Anh/chị cứ hỏi tự nhiên ạ.', 'bot');
+  });
 </script>
 </body>
 </html>
