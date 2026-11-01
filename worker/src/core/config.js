@@ -16,10 +16,10 @@ export function defaultConfig() {
     greeting:
       'Em chào anh/chị! 👋\n' +
       'Em là Chatbot hỗ trợ tra cứu thủ tục hành chính của UBND xã Xuân Lãng, tỉnh Phú Thọ.\n\n' +
-      'Anh/chị có thể hỏi em bằng câu tự nhiên, ví dụ:\n' +
+      'Anh/chị cứ hỏi em tự nhiên, ví dụ:\n' +
       '• "Cần hồ sơ gì để đăng ký kết hôn?"\n' +
       '• "Thủ tục cấp hộ khẩu tại xã Xuân Lãng"\n' +
-      '• "Mã 1.000894" (tra cứu chi tiết theo mã thủ tục)\n\n' +
+      '• "Mã 1.000894" để xem chi tiết thủ tục theo mã\n\n' +
       'Bên dưới em có gợi ý một số thủ tục phổ biến, anh/chị bấm vào là em tra cứu ngay ạ.',
     fallbackMessage:
       'Em chưa tìm thấy thủ tục phù hợp. Anh/chị vui lòng liên hệ trực tiếp UBND xã Xuân Lãng để được hỗ trợ.',
