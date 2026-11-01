@@ -279,7 +279,7 @@ export function detailToContext(d) {
  * Tìm nội dung tra cứu đầy đủ cho một câu hỏi.
  * Trả về { kind, text, data, sources } — text là ngữ cảnh đưa cho AI.
  */
-export async function buildContext(dvc, rawText, { defaultWardCode } = {}) {
+export async function buildContext(dvc, rawText, { defaultWardCode, skipLookup = false } = {}) {
   const trimmed = String(rawText || '').trim();
 
   // Lệnh tra cứu danh mục
@@ -310,6 +310,12 @@ export async function buildContext(dvc, rawText, { defaultWardCode } = {}) {
     const r = await dvc.listCategories(kw);
     const text = r.items.map((c) => `- ${c.name} (${c.code})`).join('\n');
     return { kind: 'categories', text, data: r.items, sources: [] };
+  }
+
+  // Câu hỏi về thời gian (vd "mấy giờ rồi") -> KHÔNG tra Cổng DVC.
+  // Để nguyên ngữ cảnh rỗng cho AI tự trả lời (yêu cầu #4).
+  if (skipLookup) {
+    return { kind: 'none', text: '', data: [], total: 0, scope: null, sources: [] };
   }
 
   // Mã thủ tục -> chi tiết

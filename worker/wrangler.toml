@@ -23,9 +23,11 @@ enabled = true
 [ai]
 binding = "AI"
 
-# Cron làm mới access token Zalo OA mỗi ngày 03:00 (giờ VN = 20:00 UTC hôm trước)
+# Cron: đồng bộ thủ tục của xã từ Cổng DVC 2 lần/ngày (03:00 và 15:00 giờ VN)
+# + làm mới access token Zalo OA.
+# Cloudflare Free cho phép cron -> vẫn miễn phí, dữ liệu luôn mới nhất.
 [triggers]
-crons = ["0 20 * * *"]
+crons = ["0 20 * * *", "0 8 * * *"]
 
 # --- KV namespace thật (đã tạo trên Cloudflare) ---
 [[kv_namespaces]]

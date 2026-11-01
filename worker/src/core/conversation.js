@@ -13,7 +13,8 @@ import {
   asArray,
 } from './retrieve.js';
 import { parseIntent, stripVN } from './nlu.js';
-import { searchLocalProcedures, localProcedureToReply, localProcedureToText } from './procedures.js';
+import { searchLocalProcedures, localProcedureToReply, localProcedureToText, normalizeDesk, normalizeOfficer, getProcedureByCode } from './procedures.js';
+import { searchWardIndex, STRONG_SCORE, cleanSummary, isTimeQuestion } from './ward-search.js';
 
 /** Tạo engine từ config. */
 export function makeEngines(cfg, env = {}) {
@@ -114,6 +115,14 @@ export async function handleMessage({ dvc, ai, cfg, db = null, text, channel, hi
     // (đồng chí phụ trách, bàn số, số điện thoại) mà Cổng DVC Quốc gia
     // không có. Nếu tra DVC trước sẽ ra kết quả chung chung hoặc không
     // có kết quả -> người dân không biết hỏi ai.
+    //
+    // 3 tầng, từ mạnh -> yếu:
+    //   A. Thủ tục đã GÁN chuyên viên + khớp mạnh -> trả ngay kèm
+    //      bàn số / SĐT / tên đồng chí (đúng yêu cầu #2).
+    //   B. Index D1 của xã (bigram + từ đồng nghĩa) -> trả danh sách
+    //      thủ tục CÓ ÁP DỤNG TẠI XÃ kèm mức độ + link DVC.
+    //   C. Cổng DVC Quốc gia (gateway) -> dữ liệu toàn quốc, dùng khi
+    //      index xã không có kết quả (bản mới nhất chưa kịp import).
     // ---------------------------------------------------------------
     if (db && !intent.code) {
       const local = await searchLocalProcedures(db, input, { limit: 3 });
@@ -144,11 +153,67 @@ export async function handleMessage({ dvc, ai, cfg, db = null, text, channel, hi
           meta,
         };
       }
+
+      // ---- Tầng B: index D1 của xã ----
+      // Câu hỏi về thời gian -> bỏ qua (để AI trả lời, yêu cầu #4).
+      const timeQ = isTimeQuestion(input);
+      const wardHits = timeQ ? [] : await searchWardIndex(db, input, { limit: 6 });
+      const wardTop = wardHits[0];
+      if (wardTop && wardTop.score >= STRONG_SCORE) {
+        meta.kind = 'ward-index';
+        meta.scope = 'ward';
+        meta.wardHits = wardHits.length;
+
+        const lines = [];
+        lines.push(
+          `Tại xã Xuân Lãng, em tìm thấy ${wardHits.length} thủ tục liên quan:` +
+            (wardHits.length === 1 ? '' : '')
+        );
+        for (const h of wardHits) {
+          const r = h.row;
+          lines.push('');
+          lines.push(`• *${r.name}*`);
+          if (r.code) lines.push(`  Mã: ${r.code}`);
+          if (r.level) {
+            const lv = { FULL: 'xã thực hiện toàn bộ', PARTIAL: 'xã thực hiện một phần', ALL: 'có liên quan' }[r.level];
+            if (lv) lines.push(`  Mức độ: ${lv}`);
+          }
+          if (r.summary) {
+            const s = cleanSummary(r.summary);
+            if (s) lines.push(`  ${s}`);
+          }
+          if (r.officer) {
+            const bits = [];
+            if (r.desk) bits.push(`bàn số ${normalizeDesk(r.desk)}`);
+            if (r.phone) bits.push(`SĐT ${r.phone}`);
+            lines.push(
+              `  👤 Đồng chí phụ trách: ${normalizeOfficer(r.officer)}` + (bits.length ? ` (${bits.join(', ')})` : '')
+            );
+          }
+          if (r.citizen_url) lines.push(`  Nộp trực tuyến: ${r.citizen_url}`);
+          else if (r.portal_url) lines.push(`  ${r.portal_url}`);
+        }
+        lines.push('');
+        lines.push(
+          'Anh/chị nhắn lại mã thủ tục (vd: 1.000894) để em tra cứu chi tiết đầy đủ ạ.'
+        );
+        return {
+          messages: splitForChat(lines.join('\n')),
+          quickReplies: wardHits
+            .map((h) => ({ title: h.row.code || h.row.name.slice(0, 20), payload: h.row.code || h.row.name }))
+            .filter((x) => x.payload)
+            .slice(0, 13),
+          meta,
+        };
+      }
     }
 
     // Lấy ngữ cảnh từ DVC
     const ctx = await buildContext(dvc, input, {
       defaultWardCode: cfg.defaultWardCode,
+      // Câu hỏi về thời gian -> KHÔNG tra Cổng DVC, để AI trả lời
+      // (yêu cầu #4: câu ngoài lề phải do AI xử lý).
+      skipLookup: isTimeQuestion(input),
     });
     meta.kind = ctx.kind;
     meta.scope = ctx.scope || null;
@@ -203,7 +268,23 @@ export async function handleMessage({ dvc, ai, cfg, db = null, text, channel, hi
     if (aiOn) {
       // Gắn thêm thông tin ngày tháng hiện tại vào ngữ cảnh để AI trả lời
       // được câu hỏi kiểu "hồ sơ này còn hạn đến khi nào?" / "hôm nay là thứ mấy?"
-      const r = await ai.ask(input, withCurrentDate(ctx.text), { history });
+      //
+      // Khi người dân gõ MÃ thủ tục, tra D1 theo mã để gắn thêm thông tin
+      // NỘI BỘ của xã (đồng chí phụ trách, bàn số, SĐT) — Cổng DVC không có.
+      let aiCtx = withCurrentDate(ctx.text);
+      if (intent.code && db) {
+        const localByCode = await getProcedureByCode(db, intent.code);
+        if (localByCode && localByCode.officer) {
+          aiCtx +=
+            '\n\nTHÔNG TIN TIẾP NHẬN TẠI XÃ XUÂN LÃNG:\n' +
+            localProcedureToText(localByCode) +
+            `\n(Nhắc anh/chị: đến gặp đồng chí ${normalizeOfficer(localByCode.officer)}` +
+            (localByCode.desk ? ` tại bàn số ${normalizeDesk(localByCode.desk)}` : '') +
+            (localByCode.phone ? `, số điện thoại ${localByCode.phone}` : '') +
+            ` tại ${cfg.officeName || 'Trung tâm Phục vụ hành chính công xã Xuân Lãng'}.)`;
+        }
+      }
+      const r = await ai.ask(input, aiCtx, { history });
       if (r.text) {
         meta.engine = r.engine;
         let out = r.text.trim();
@@ -319,11 +400,24 @@ export function formatDeterministic(ctx, cfg) {
       lines.push(`*Kết quả:* ${results.join('; ')}`);
     }
 
-    if (ctx.sources?.length) {
+    // Trình tự thực hiện (rút gọn) — giúp người dân hình dung quy trình.
+    const steps = asArray(d.steps)
+      .map((s) => (s.description || s.name || '').replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    if (steps.length) {
       lines.push('');
+      lines.push('*Trình tự:*');
+      steps.slice(0, 6).forEach((s, i) => {
+        const brief = s.length > 220 ? s.slice(0, 220) + '…' : s;
+        lines.push(`${i + 1}. ${brief}`);
+      });
+    }
+
+    // Link — luôn kèm link thủ tục trên Cổng DVC Quốc gia (yêu cầu #5).
+    lines.push('');
+    if (ctx.sources?.length) {
       for (const s of ctx.sources) lines.push(`🔗 ${s.label || 'Xem thêm'}: ${s.url}`);
     } else if (d.portal_url) {
-      lines.push('');
       lines.push(`🔗 Cổng DVC Quốc gia: ${d.portal_url}`);
     }
     return lines.join('\n');

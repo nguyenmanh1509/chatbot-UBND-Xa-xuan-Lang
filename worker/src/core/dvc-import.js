@@ -38,6 +38,10 @@ export function summariseProcedure(item) {
     .replace(/\s*\n+\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
+  if (!cleaned) return '';
+  // Loại mô tả rác ("Không.", "-", "N/A") -> in ra cho người dân rất xấu.
+  const junk = ['không', 'khong', 'n/a', 'na', '-', '--', 'null', 'undefined'];
+  if (junk.includes(cleaned.toLowerCase().replace(/[.!?]+$/, '').trim())) return '';
   if (cleaned.length <= 220) return cleaned;
   const cut = cleaned.slice(0, 220);
   const lastSpace = cut.lastIndexOf(' ');

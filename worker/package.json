@@ -7,8 +7,10 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "node test/core.test.mjs && node test/ai.test.mjs && node test/facebook.test.mjs && node test/config.test.mjs && node test/auth.test.mjs",
+    "test": "node test/core.test.mjs && node test/ward.test.mjs && node test/ward-search.test.mjs && node test/ai.test.mjs && node test/facebook.test.mjs && node test/config.test.mjs && node test/auth.test.mjs",
     "test:core": "node test/core.test.mjs",
+    "test:ward": "node test/ward.test.mjs",
+    "test:ward-search": "node test/ward-search.test.mjs",
     "test:ai": "node test/ai.test.mjs",
     "test:fb": "node test/facebook.test.mjs",
     "test:auth": "node test/auth.test.mjs"

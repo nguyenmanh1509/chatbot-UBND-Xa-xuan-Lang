@@ -45,6 +45,8 @@ import {
   queryProcedures,
   importProcedures,
   assignOfficer,
+  assignOfficerByFilter,
+  listCategories,
   procedureStats,
 } from './core/procedures.js';
 import { importWardProcedures } from './core/dvc-import.js';
@@ -351,6 +353,8 @@ async function handleZaloOaWebhook(request, env, cfg, ctx) {
 async function handleGreetingApi(env, cfg) {
   const greeting = cfg.greeting;
   return ok({
+    // Tiêu đề chatbot — admin sửa trong Admin panel (tab "Câu chào").
+    title: cfg.chatTitle || 'Chatbot hỗ trợ tra cứu thủ tục hành chính',
     messages: [greeting],
     quickReplies: buildGreetingQuickReplies(),
   });
@@ -610,6 +614,46 @@ async function handleAdminApi(request, env, cfg, pathname) {
   }
 
   /**
+   * Đồng bộ NGAY toàn bộ thủ tục của xã từ Cổng DVC (không chờ cron).
+   *
+   * VÌ SAO CẦN: cron chạy 2 lần/ngày, nhưng khi Cổng DVC cập nhật giữa
+   * ngày (thường xảy ra khi phát sinh thủ tục mới) thì admin không
+   * phải chờ tới 8h/20h hôm sau. Endpoint này nạp liên tục tối đa
+   * 40 trang mỗi lần gọi, upsert không phá dữ liệu đã gán chuyên viên.
+   */
+  if (pathname === '/api/admin/import-now' && request.method === 'POST') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    const wardCode = String(cfg.defaultWardCode || '').trim();
+    if (!wardCode) return fail('Thiếu mã xã/phường');
+    try {
+      const { dvc } = makeEngines(cfg, env);
+      const r = await importWardProcedures({
+        dvc,
+        db: env.DB,
+        wardCode,
+        startPage: 1,
+        maxPages: 40,
+        importFn: importProcedures,
+      });
+      if (!r.ok) return fail(r.error || 'Đồng bộ thất bại', 502);
+      await logEvent(env, {
+        channel: 'admin',
+        type: 'procedures_sync_now',
+        imported: r.imported,
+        pages: r.pages,
+      });
+      return ok({
+        imported: r.imported,
+        pages: r.pages,
+        done: r.done,
+        stats: await procedureStats(env.DB),
+      });
+    } catch (err) {
+      return fail('Lỗi khi đồng bộ: ' + String(err?.message || err), 500);
+    }
+  }
+
+  /**
    * Gán chuyên viên phụ trách cho nhiều thủ tục cùng lúc.
    *
    * YÊU CẦU: "lấy all thủ tục của xã, sau đó gán thủ tục cho các chuyên
@@ -634,6 +678,36 @@ async function handleAdminApi(request, env, cfg, pathname) {
       count: r.count,
     });
     return ok({ count: r.count, stats: await procedureStats(env.DB) });
+  }
+
+  /** Gán hàng loạt theo bộ lọc (lĩnh vực / mức độ / từ khóa). */
+  if (pathname === '/api/admin/procedures/assign-bulk' && request.method === 'POST') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    let body;
+    try {
+      body = await request.json();
+    } catch (_) {
+      return fail('Body phải là JSON');
+    }
+    const r = await assignOfficerByFilter(
+      env.DB,
+      body?.filter || {},
+      body?.data || {}
+    );
+    if (!r.ok) return fail(r.error, 400);
+    await logEvent(env, {
+      channel: 'admin',
+      type: 'procedures_assigned_bulk',
+      count: r.count,
+      filter: body?.filter || {},
+    });
+    return ok({ count: r.count, stats: r.stats });
+  }
+
+  /** Danh sách lĩnh vực để gán hàng loạt. */
+  if (pathname === '/api/admin/procedures/categories' && request.method === 'GET') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    return ok({ categories: await listCategories(env.DB) });
   }
 
   /** Thống kê thủ tục: tổng / đã gán / chưa gán. */
@@ -1019,9 +1093,54 @@ export default {
     }
   },
 
-  /** Cron: làm mới access token Zalo OA (tránh token hết hạn). */
+  /**
+   * Cron (chạy 2 lần/ngày theo crons trong wrangler.toml):
+   *   1) Làm mới dữ liệu thủ tục của xã từ Cổng DVC (đảm bảo "mới nhất").
+   *   2) Làm mới access token Zalo OA.
+   *
+   * VÌ SAO CẦN IMPORT ĐỊNH KỲ: dữ liệu thủ tục trên Cổng DVC Quốc gia
+   * thay đổi theo Nghị định/Thông tư mới. Nếu chỉ import 1 lần lúc
+   * triển khai thì bot sẽ nói thông tin cũ. Cron đồng bộ lại -> dữ liệu
+   * luôn mới nhất mà vẫn miễn phí (Cloudflare Free cho phép cron).
+   *
+   * Import dùng ON CONFLICT DO UPDATE nên:
+   *   - không tạo bản trùng,
+   *   - KHÔNG ghi đè phần admin đã gán (đồng chí, bàn số, SĐT).
+   */
   async scheduled(event, env, ctx) {
     const cfg = await loadConfig(env);
+
+    // ---- 1) Đồng bộ thủ tục của xã ----
+    if (env.DB && cfg.defaultWardCode) {
+      try {
+        const { dvc } = makeEngines(cfg, env);
+        const r = await importWardProcedures({
+          dvc,
+          db: env.DB,
+          wardCode: cfg.defaultWardCode,
+          startPage: 1,
+          maxPages: 40,
+          importFn: importProcedures,
+        });
+        await logEvent(env, {
+          channel: 'cron',
+          type: 'procedures_synced',
+          imported: r.imported,
+          pages: r.pages,
+          done: r.done,
+          total: r.total,
+          error: r.error || null,
+        });
+      } catch (err) {
+        await logEvent(env, {
+          channel: 'cron',
+          type: 'procedures_sync_failed',
+          error: String(err?.message || err),
+        });
+      }
+    }
+
+    // ---- 2) Làm mới token Zalo OA ----
     const ch = cfg.channels.zaloOa;
     if (!ch.enabled || !ch.refreshToken || !ch.secretKey) return;
 
@@ -1030,7 +1149,7 @@ export default {
       if (r?.access_token) {
         ch.accessToken = r.access_token;
         if (r.refresh_token) ch.refreshToken = r.refresh_token;
-        await saveConfig(env, ch === cfg.channels.zaloOa ? cfg : cfg);
+        await saveConfig(env, cfg);
         await logEvent(env, { channel: 'zalo-oa', type: 'token_refreshed' });
       }
     } catch (err) {

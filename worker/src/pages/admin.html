@@ -331,7 +331,7 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           thủ tục áp dụng tại xã Xuân Lãng (khoảng 3.500 thủ tục, kèm mã và link trên dichvucong.gov.vn).
           <br><b>Bước 2 — Gán chuyên viên phụ trách.</b> Tìm thủ tục, tick nhiều dòng rồi gán
           đồng chí/bàn số/số điện thoại một lần. Khi người dân hỏi thủ tục đó, bot sẽ trả:
-          "Anh/chị hãy đến gặp đồng chí ... tại bàn ... tại Trung tâm Phục vụ hành chính công xã Xuân Lãng".
+          "Anh/chị hãy đến gặp đồng chí ... tại bàn số ..., số điện thoại ... tại Trung tâm Phục vụ hành chính công xã Xuân Lãng".
           <br><b>Bước 3 — Thủ tục do xã tự khai báo.</b> Khai báo thêm ở bảng bên dưới nếu có
           thủ tục riêng chỉ của xã. Tất cả trường ngoài <b>Tên thủ tục</b> đều
           <b>có thể để trống</b> — trường trống sẽ không hiển thị trong câu trả lời.
@@ -363,6 +363,40 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           <button class="sec" id="btnClearSel">Bỏ chọn</button>
           <span id="procAssignMsg" class="hint"></span>
         </div>
+
+        <!-- Gán HÀNG LOẠT theo lĩnh vực: xã có 3.544 thủ tục, không thể
+             tick từng dòng. Chọn lĩnh vực + đồng chí -> gán 1 lần. -->
+        <details style="margin:10px 0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px">
+          <summary style="cursor:pointer;font-weight:600">⚡ Gán hàng loạt theo lĩnh vực (nhanh)</summary>
+          <p class="hint">
+            Gán cùng một đồng chí cho toàn bộ thủ tục của một lĩnh vực.
+            Ví dụ: chọn "Hộ tịch" → gán đồng chí phụ trách Hộ tịch → 39 thủ tục
+            trong lĩnh vực đó tự động có bàn số + số điện thoại.
+          </p>
+          <div class="row">
+            <select id="bulk.category" style="max-width:280px">
+              <option value="">— Chọn lĩnh vực —</option>
+            </select>
+            <select id="bulk.level" style="max-width:200px">
+              <option value="">Mọi mức độ</option>
+              <option value="FULL">Xã thực hiện toàn bộ</option>
+              <option value="PARTIAL">Xã thực hiện một phần</option>
+              <option value="ALL">Chỉ liên quan</option>
+            </select>
+            <label style="margin:0;display:flex;align-items:center;gap:6px">
+              <input type="checkbox" id="bulk.onlyUnassigned" checked>
+              <span style="font-weight:400">Chỉ gán thủ tục chưa có đồng chí</span>
+            </label>
+          </div>
+          <div class="row">
+            <input id="bulk.officer" placeholder="Đồng chí phụ trách" style="max-width:180px">
+            <input id="bulk.desk" placeholder="Bàn số" style="max-width:130px">
+            <input id="bulk.phone" placeholder="Số điện thoại" style="max-width:160px">
+            <input id="bulk.office_hours" placeholder="Giờ làm việc" style="max-width:160px">
+            <button class="grn" id="btnBulkAssign">Gán hàng loạt</button>
+            <span id="bulkAssignMsg" class="hint"></span>
+          </div>
+        </details>
 
         <div id="procList"></div>
         <div id="procPager" class="row" style="justify-content:center;margin-top:12px">
@@ -449,6 +483,11 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
         <div class="acc-body">
         <label>Tên hiển thị</label>
         <input id="siteName">
+        <label>Tiêu đề chatbot (hiện trên web + Messenger)</label>
+        <input id="chatTitle" placeholder="Chatbot hỗ trợ tra cứu thủ tục hành chính">
+        <label>Tên cơ quan (dùng trong câu mời người dân đến gặp)</label>
+        <input id="officeName" placeholder="Trung tâm Phục vụ hành chính công xã Xuân Lãng">
+        <p class="hint">Câu mời sẽ có dạng: "Anh/chị hãy đến gặp đồng chí Nguyễn Văn A tại bàn số 3, số điện thoại 0212 3456 789 tại Trung tâm Phục vụ hành chính công xã Xuân Lãng."</p>
         <label>Câu chào</label>
         <textarea id="greeting"></textarea>
         <label>Thông báo khi không tìm thấy thủ tục</label>
@@ -649,7 +688,7 @@ async function restoreSession() {
 function fill() {
   // Chưa có config (chưa nạp xong) -> không làm gì, tránh lỗi TypeError.
   if (!CFG) return;
-  const flat = ['siteName', 'greeting', 'fallbackMessage', 'errorMessage', 'defaultWardCode', 'defaultWardName'];
+  const flat = ['siteName', 'chatTitle', 'officeName', 'greeting', 'fallbackMessage', 'errorMessage', 'defaultWardCode', 'defaultWardName'];
   for (const k of flat) {
     const el = $(k);
     if (el) el.value = CFG[k] ?? '';
@@ -673,7 +712,7 @@ function fill() {
 
 function collect() {
   const c = JSON.parse(JSON.stringify(CFG));
-  for (const k of ['siteName', 'greeting', 'fallbackMessage', 'errorMessage', 'defaultWardCode', 'defaultWardName']) {
+  for (const k of ['siteName', 'chatTitle', 'officeName', 'greeting', 'fallbackMessage', 'errorMessage', 'defaultWardCode', 'defaultWardName']) {
     const el = $(k);
     if (el) c[k] = el.value;
   }
@@ -948,6 +987,66 @@ async function assignSelected() {
 }
 
 /**
+ * Nạp danh sách lĩnh vực vào select để gán hàng loạt.
+ */
+async function loadCategories() {
+  try {
+    const j = await api('/api/admin/procedures/categories');
+    const sel = $('bulk.category');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Chọn lĩnh vực —</option>';
+    for (const c of (j.categories || [])) {
+      const o = document.createElement('option');
+      o.value = c.name;
+      o.textContent = `${c.name} (${c.count})`;
+      sel.appendChild(o);
+    }
+    sel.value = cur;
+  } catch (_) {
+    /* không quan trọng */
+  }
+}
+
+/** Gán hàng loạt theo lĩnh vực / mức độ. */
+async function bulkAssign() {
+  const msg = $('bulkAssignMsg');
+  const filter = {
+    category: $('bulk.category').value,
+    level: $('bulk.level').value,
+    onlyUnassigned: $('bulk.onlyUnassigned').checked,
+  };
+  if (!filter.category && !filter.level) {
+    msg.textContent = '✖ Chọn lĩnh vực hoặc mức độ để lọc';
+    return;
+  }
+  const data = {
+    officer: $('bulk.officer').value.trim(),
+    desk: $('bulk.desk').value.trim(),
+    phone: $('bulk.phone').value.trim(),
+    office_hours: $('bulk.office_hours').value.trim(),
+  };
+  if (!data.officer && !data.desk && !data.phone && !data.office_hours) {
+    msg.textContent = '✖ Nhập ít nhất một thông tin (đồng chí / bàn / điện thoại)';
+    return;
+  }
+  const label = filter.category ? `lĩnh vực "${filter.category}"` : `mức độ "${filter.level}"`;
+  if (!confirm(`Gán đồng chí "${data.officer || '(chưa có)'}" cho toàn bộ thủ tục ${label}?\n\nSố lượng có thể rất lớn.`)) {
+    return;
+  }
+  try {
+    const j = await api('/api/admin/procedures/assign-bulk', {
+      method: 'POST',
+      body: JSON.stringify({ filter: filter, data: data })
+    });
+    msg.textContent = `✔ Đã gán ${j.count || 0} thủ tục`;
+    loadProcedures();
+  } catch (e) {
+    msg.textContent = '✖ ' + e.message;
+  }
+}
+
+/**
  * Nhập thủ tục từ Cổng DVC.
  *
  * Lặp cho tới khi hết dữ liệu, mỗi vòng gọi 1 API với `startPage` tiếp
@@ -1148,6 +1247,8 @@ document.addEventListener('DOMContentLoaded', function () {
   $('btnImportAll').onclick = function () { importFromDvc(50); };
   $('btnReloadProc').onclick = function () { PROC_PAGE = 0; loadProcedures(); };
   $('btnAssign').onclick = assignSelected;
+  $('btnBulkAssign').onclick = bulkAssign;
+  loadCategories();
   $('btnClearSel').onclick = function () {
     document.querySelectorAll('.proc-chk:checked').forEach(function (c) { c.checked = false; });
     updateSelBar();

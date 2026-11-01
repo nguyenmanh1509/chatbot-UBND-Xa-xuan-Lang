@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Trợ lý tra cứu thủ tục hành chính — UBND xã Xuân Lãng</title>
+<title>Chatbot hỗ trợ tra cứu thủ tục hành chính — UBND xã Xuân Lãng</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f1f5f9;color:#0f172a}
@@ -24,7 +24,8 @@ button{padding:12px 18px;border:0;border-radius:10px;background:#0B3D62;color:#f
 </head>
 <body>
 <div class="wrap">
-  <h1>Trợ lý tra cứu thủ tục hành chính UBND xã Xuân Lãng</h1>
+  <h1 id="chatTitle">Chatbot hỗ trợ tra cứu thủ tục hành chính</h1>
+  <div class="hint" id="chatSub" style="font-size:12px;color:#64748b;margin:-8px 0 12px">UBND xã Xuân Lãng, tỉnh Phú Thọ</div>
   <div id="log"></div>
   <div class="chips" id="chips"></div>
   <form id="f">
@@ -94,6 +95,8 @@ document.getElementById('f').onsubmit = (e) => { e.preventDefault(); send(q.valu
 fetch('/api/greeting')
   .then(r => r.json())
   .then(j => {
+    // Tiêu đề lấy từ cấu hình để admin sửa được trong Admin panel.
+    if (j.title) document.getElementById('chatTitle').textContent = j.title;
     (j.messages || []).forEach(m => add(m, 'bot'));
     (j.quickReplies || []).forEach(q => {
       const c = document.createElement('div');
@@ -104,7 +107,7 @@ fetch('/api/greeting')
     });
   })
   .catch(() => {
-    add('Xin chào anh/chị! Em là trợ lý tra cứu thủ tục hành chính UBND xã Xuân Lãng. Anh/chị cứ hỏi tự nhiên ạ.', 'bot');
+    add('Em chào anh/chị! Em là Chatbot hỗ trợ tra cứu thủ tục hành chính của UBND xã Xuân Lãng, tỉnh Phú Thọ. Anh/chị cứ hỏi tự nhiên ạ.', 'bot');
   });
 </script>
 </body>
