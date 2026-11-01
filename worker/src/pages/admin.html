@@ -50,6 +50,26 @@ ol.guide-steps a{color:#1d4ed8}
 ol.guide-steps b{color:#0f172a}
 ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
 .p{font-size:12px}
+
+/* --- Thẻ gập/collapse: bấm tiêu đề thẻ mới mở nội dung bên trong --- */
+.card.acc{padding:0;overflow:hidden}
+.card.acc>summary{
+  list-style:none;cursor:pointer;user-select:none;
+  padding:14px 18px;display:flex;align-items:center;gap:10px;
+  font-size:16px;font-weight:700;color:#0f172a;background:#fff;
+  transition:background .12s;
+}
+.card.acc>summary:hover{background:#f1f5f9}
+.card.acc>summary::-webkit-details-marker{display:none}
+.card.acc>summary::before{
+  content:"▸";display:inline-block;transition:transform .15s;
+  color:#64748b;font-size:15px;
+}
+.card.acc[open]>summary::before{transform:rotate(90deg)}
+.card.acc[open]>summary{border-bottom:1px solid #e2e8f0}
+.card.acc>.acc-body{padding:0 18px 18px}
+.card.acc>.acc-body>.hint:first-child{margin-top:12px}
+.card.acc .badge{vertical-align:middle}
 </style>
 </head>
 <body>
@@ -68,16 +88,6 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
       <button class="grn" id="loginBtn">Đăng nhập</button>
     </div>
     <div id="loginMsg" class="msg hidden"></div>
-    <details class="guide" style="margin-top:12px">
-      <summary>Tài khoản quản trị mặc định</summary>
-      <p class="hint" style="margin-top:8px">
-        Tài khoản dự phòng được tạo tự động từ biến môi trường <code>ADMIN_PASSWORD</code>:
-        <br>• <b>Tài khoản:</b> <code>admin</code>
-        <br>• <b>Mật khẩu:</b> <code>UBNDXuanLang@2026</code>
-        <br>
-        <br>Sau khi vào được, vào tab <b>Tài khoản</b> để đổi mật khẩu hoặc tạo thêm tài khoản cho cán bộ khác.
-      </p>
-    </details>
   </div>
 
   <div id="app" class="hidden">
@@ -92,8 +102,9 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
     </div>
 
     <div id="tab-ch">
-      <div class="card">
-        <h2>Facebook — Messenger Platform <span class="badge on">MIỄN PHÍ</span></h2>
+      <details class="card acc" id="acc-fb">
+        <summary>Facebook — Messenger Platform <span class="badge on">MIỄN PHÍ</span></summary>
+        <div class="acc-body">
         <p class="hint">Gửi tin trong cửa sổ 24h sau khi người dùng nhắn là miễn phí. Không cần mua gói nào.</p>
         <div class="row">
           <label style="margin:0;font-weight:600">Bật kênh Facebook</label>
@@ -177,10 +188,12 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
             và trong giai đoạn phát triển bạn có thể chỉ cần Page do chính bạn quản lý.
           </p>
         </details>
-      </div>
+        </div>
+      </details>
 
-      <div class="card">
-        <h2>Zalo Bot Platform <span class="badge on">MIỄN PHÍ</span></h2>
+      <details class="card acc" id="acc-zb">
+        <summary>Zalo Bot Platform <span class="badge on">MIỄN PHÍ</span></summary>
+        <div class="acc-body">
         <p class="hint">Gói Basic: 3 bot · 50 người dùng/bot · 3.000 tin nhắn/tháng. Phù hợp demo hoặc dùng nội bộ.</p>
         <div class="row">
           <label style="margin:0;font-weight:600">Bật kênh Zalo Bot</label>
@@ -210,10 +223,12 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           <button class="sec" id="regZbWebhook">Đăng ký webhook Zalo Bot</button>
           <div id="res-zb-webhook" class="msg hidden"></div>
         </div>
-      </div>
+        </div>
+      </details>
 
-      <div class="card">
-        <h2>Zalo OA + OpenAPI <span class="badge warn">CẦN GÓI TĂNG TRƯỞNG</span></h2>
+      <details class="card acc" id="acc-zo">
+        <summary>Zalo OA + OpenAPI <span class="badge warn">CẦN GÓI TĂNG TRƯỞNG</span></summary>
+        <div class="acc-body">
         <p class="hint">Chỉ OA dùng gói Tăng trưởng (2,5 triệu/năm) hoặc Toàn diện mới có OpenAPI. Nên đăng ký OA loại "Cơ quan nhà nước" và xin ưu đãi tại oa@zalo.me.</p>
         <div class="row">
           <label style="margin:0;font-weight:600">Bật kênh Zalo OA</label>
@@ -235,12 +250,14 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           <li>Tin tư vấn trong 48h sau khi người dùng nhắn là <b>miễn phí</b>; ngoài 48h tính 55đ/tin</li>
           <li>Worker tự làm mới access token hằng ngày — không cần thao tác tay</li>
         </ul>
-      </div>
+        </div>
+      </details>
     </div>
 
     <div id="tab-ai" class="hidden">
-      <div class="card">
-        <h2>Nhà cung cấp AI</h2>
+      <details class="card acc">
+        <summary>Nhà cung cấp AI</summary>
+        <div class="acc-body">
         <label>Cấu hình AI</label>
         <select id="ai.provider">
           <option value="workers-ai">Cloudflare Workers AI — miễn phí, không cần API key (khuyến nghị)</option>
@@ -280,10 +297,12 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           <button class="sec" data-test="ai">Kiểm tra AI</button>
           <div id="res-ai" class="msg hidden"></div>
         </div>
-      </div>
+        </div>
+      </details>
 
-      <div class="card">
-        <h2>Nguồn dữ liệu thủ tục (DVC)</h2>
+      <details class="card acc">
+        <summary>Nguồn dữ liệu thủ tục (DVC)</summary>
+        <div class="acc-body">
         <div class="grid">
           <div>
             <label>Base URL</label>
@@ -299,12 +318,14 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           <button class="sec" data-test="dvc">Kiểm tra DVC</button>
           <div id="res-dvc" class="msg hidden"></div>
         </div>
-      </div>
+        </div>
+      </details>
     </div>
 
     <div id="tab-proc" class="hidden">
-      <div class="card">
-        <h2>Thủ tục riêng của UBND xã Xuân Lãng</h2>
+      <details class="card acc" open>
+        <summary>Thủ tục riêng của UBND xã Xuân Lãng</summary>
+        <div class="acc-body">
         <p class="hint">
           Khai báo các thủ tục <b>riêng của xã</b> kèm thông tin liên hệ nội bộ.
           Người dân chỉ cần nhắn tên thủ tục là bot trả ngay đồng chí phụ trách, bàn số, số điện thoại.
@@ -381,12 +402,14 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
             </div>
           </div>
         </details>
-      </div>
+        </div>
+      </details>
     </div>
 
     <div id="tab-msg" class="hidden">
-      <div class="card">
-        <h2>Câu chào &amp; thông báo</h2>
+      <details class="card acc" open>
+        <summary>Câu chào &amp; thông báo</summary>
+        <div class="acc-body">
         <label>Tên hiển thị</label>
         <input id="siteName">
         <label>Câu chào</label>
@@ -405,18 +428,22 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
             <input id="defaultWardName">
           </div>
         </div>
-      </div>
+        </div>
+      </details>
     </div>
 
     <div id="tab-users" class="hidden">
-      <div class="card">
-        <h2>Tài khoản quản trị</h2>
+      <details class="card acc" open>
+        <summary>Tài khoản quản trị</summary>
+        <div class="acc-body">
         <p class="hint">Mật khẩu được lưu dạng băm (PBKDF2), không lưu dạng rõ. Phiên đăng nhập giữ 30 ngày.</p>
         <div id="usersBox" class="hint">Đang tải...</div>
-      </div>
+        </div>
+      </details>
 
-      <div class="card">
-        <h2>Tạo tài khoản mới</h2>
+      <details class="card acc">
+        <summary>Tạo tài khoản mới</summary>
+        <div class="acc-body">
         <div class="grid">
           <div>
             <label>Tên đăng nhập</label>
@@ -445,10 +472,12 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           <button class="grn" id="userAddBtn">Tạo tài khoản</button>
           <span id="userMsg" class="hint"></span>
         </div>
-      </div>
+        </div>
+      </details>
 
-      <div class="card">
-        <h2>Đổi mật khẩu</h2>
+      <details class="card acc">
+        <summary>Đổi mật khẩu</summary>
+        <div class="acc-body">
         <div class="grid">
           <div>
             <label>Tài khoản</label>
@@ -463,12 +492,14 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           <button class="sec" id="pwBtn">Đổi mật khẩu</button>
           <span id="pwMsg" class="hint"></span>
         </div>
-      </div>
+        </div>
+      </details>
     </div>
 
     <div id="tab-test" class="hidden">
-      <div class="card">
-        <h2>Thử câu hỏi</h2>
+      <details class="card acc" open>
+        <summary>Thử câu hỏi</summary>
+        <div class="acc-body">
         <p class="hint">Xem đúng phản hồi mà người dùng sẽ nhận trên mọi kênh.</p>
         <textarea id="tq" placeholder="cần hồ sơ gì để đăng ký kết hôn tại xã Xuân Lãng?"></textarea>
         <div class="row">
@@ -476,15 +507,18 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
           <span class="hint">Gợi ý: "đăng ký kết hôn", "cấp hộ khẩu", "đăng ký xe máy", "1.000894"</span>
         </div>
         <div id="tqRes"></div>
-      </div>
+        </div>
+      </details>
     </div>
 
     <div id="tab-stats" class="hidden">
-      <div class="card">
-        <h2>Thống kê lượt dùng</h2>
+      <details class="card acc" open>
+        <summary>Thống kê lượt dùng</summary>
+        <div class="acc-body">
         <div id="statsBox" class="hint">Đang tải...</div>
         <div class="row"><button class="sec" id="statsBtn">Tải lại</button></div>
-      </div>
+        </div>
+      </details>
     </div>
 
     <div class="sticky">
