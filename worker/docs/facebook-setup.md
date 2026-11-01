@@ -200,14 +200,24 @@ Cần cài 2 thứ trong **Meta Business Suite → Inbox → Messenger**:
 
 ```bash
 cd worker
-node scripts/facebook-greeting.mjs --user-token "EAA..."
+node scripts/facebook-greeting.mjs
 ```
 
-> ⚠️ `--user-token` phải là **USER TOKEN** (token đăng nhập tài khoản quản trị Page),
-> **không phải** Page Access Token. Meta yêu cầu tài khoản có quyền admin Page
-> mới cho cài `get_started` / `ice_breakers`.
-> Lấy token ở **Meta for Developers → Messenger → Settings → Generate token**.
-> Token này chỉ dùng 1 lần để cài, xong có thể thu hồi.
+> Script cài 2 mục: **nút "Bắt đầu"** (Get Started) và **4 câu hỏi gợi ý** (ice breakers).
+>
+> ⚠️ **LỜI CHÀO MỞ CHAT KHÔNG CÀI ĐƯỢC BẰNG API.**
+> Từ 2024, Meta đã bỏ tham số `greeting` khỏi `messenger_profile`
+> (danh sách param hợp lệ chỉ còn: `get_started`, `persistent_menu`,
+> `whitelisted_domains`, `account_linking_url`, `home_url`, `ice_breakers`,
+> `platform`, `description`, `commands`). Lệnh gửi `greeting` vẫn trả
+> `{"result":"success"}` nhưng **không lưu** — đừng bị lừa.
+>
+> → Muốn hiện lời chào khi mở chat, phải set tay trong
+> **Meta Business Suite → Inbox → Messenger → Greeting**.
+>
+> → **Nhưng không bắt buộc**: bot đã tự chào ở tin nhắn đầu tiên của mỗi
+> người dùng (xem `worker/src/core/conversation.js` → `prependFirstContactGreeting`).
+> Cách này luôn hoạt động, không phụ thuộc cấu hình nào của Meta.
 
 ### Cách cài bằng giao diện
 
@@ -215,6 +225,9 @@ Meta Business Suite → **Inbox** → mục **Messenger** → **Tự động**:
 - **Greeting** (Lời chào): bật, gõ lời chào, chọn nút bấm → **Đăng ký** (Start Chat).
 - **Trả lời tức thì** (Instant replies): tạo câu trả lời tự động với từ khóa
   `bắt đầu`, `start`, `chào`, `hello` → trả lời lời chào.
+
+> 💡 Bot đã tự chào ở tin nhắn đầu tiên nên **không cần** làm phần Greeting
+> này. Phần này chỉ để câu chào xuất hiện **trước khi** người dân gõ gì.
 
 ---
 

@@ -102,7 +102,16 @@ console.log('[ice_breakers]', JSON.stringify(iceBreakers.j));
 
 if (getStarted.ok && iceBreakers.ok) {
   console.log('\n✅ Đã cài nút "Bắt đầu" + câu hỏi gợi ý cho Page.');
-  console.log('   Thử lại: mở trang Page → bấm "Nhắn tin" → phải thấy lời chào.');
+  console.log('   Thử lại: mở trang Page → bấm "Nhắn tin" → phải thấy nút "Bắt đầu"');
+  console.log('   và 4 câu gợi ý.');
+  console.log('');
+  console.log('ℹ️  LỜI CHÀO MỞ CHAT: Meta KHÔNG cho cài bằng API nữa.');
+  console.log('   (messenger_profile đã bỏ hỗ trợ tham số `greeting` từ 2024.)');
+  console.log('   Muốn hiện lời chào khi mở chat, set tay tại:');
+  console.log('   Meta Business Suite → Inbox → Messenger → Greeting');
+  console.log('');
+  console.log('   Nhưng KHÔNG BẮT BUỘC: bot đã tự chào ở tin nhắn đầu tiên của');
+  console.log('   mỗi người dùng (xem worker/src/core/conversation.js).');
 } else {
   console.error('\n❌ Cài đặt chưa thành công.');
   console.error('   Nếu báo "User does not have sufficient administrative permission",');

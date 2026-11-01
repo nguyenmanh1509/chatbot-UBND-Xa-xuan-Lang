@@ -233,6 +233,61 @@ section('Hội thoại — lời chào khi user bấm "Nhắn tin"/"Bắt đầu
   check('text rỗng -> lời chào', rEmpty.messages[0] === cfg.greeting, rEmpty.messages[0].slice(0, 80));
 }
 
+section('Hội thoại — chào lời khi người dùng tương tác LẦN ĐẦU');
+{
+  // VÌ SAO: Meta chỉ hiện lời chào mở chat nếu Page được cấu hình trong
+  // Meta Business Suite. API `messenger_profile` đã bỏ hỏi hỗ trợ `greeting`
+  // từ 2024 -> không cài được bằng script. Nên bot phải TỰ chào ở tin nhắn
+  // đầu tiên để luôn có lời chào, không phụ thuộc Meta.
+  const cfg = defaultConfig();
+  const ai = new AiEngine({});
+
+  // Lần đầu (history rỗng) -> có lời chào ở đầu.
+  const r1 = await handleMessage({
+    dvc,
+    ai,
+    cfg,
+    text: 'hộ khẩu',
+    channel: { id: 'facebook', aiEnabled: false, greetFirstContact: true },
+    history: [],
+  });
+  check('lần đầu -> có lời chào', r1.messages[0].includes('chào'), r1.messages[0].slice(0, 80));
+  check('lần đầu -> lời chào đứng trước', r1.messages.length >= 2, String(r1.messages.length));
+
+  // Lần sau (đã có lịch sử) -> KHÔNG chào lại.
+  const r2 = await handleMessage({
+    dvc,
+    ai,
+    cfg,
+    text: 'hộ khẩu',
+    channel: { id: 'facebook', aiEnabled: false, greetFirstContact: true },
+    history: [{ role: 'user', text: 'hộ khẩu' }],
+  });
+  check('lần sau -> không chào lại', !r2.messages[0].includes('chào'), r2.messages[0].slice(0, 80));
+
+  // Nếu tin đầu tiên là lời chào -> không chào 2 lần.
+  const r3 = await handleMessage({
+    dvc,
+    ai,
+    cfg,
+    text: 'bắt đầu',
+    channel: { id: 'facebook', greetFirstContact: true },
+    history: [],
+  });
+  check('tin đầu là lời chào -> chào 1 lần', r3.messages.length === 1, String(r3.messages.length));
+
+  // Kênh KHÔNG bật greetFirstContact (web) -> không tự chào.
+  const r4 = await handleMessage({
+    dvc,
+    ai,
+    cfg,
+    text: 'hộ khẩu',
+    channel: { id: 'web', aiEnabled: false },
+    history: [],
+  });
+  check('kênh không bật -> không tự chào', !r4.messages[0].includes('chào'), r4.messages[0].slice(0, 80));
+}
+
 section('Định dạng deterministic');
 {
   const cfg = defaultConfig();
@@ -265,7 +320,8 @@ section('Ngữ cảnh ngày tháng (AI không tự biết hôm nay là ngày nà
   const ctx2 = buildNoDataContext(new Date('2026-11-01T23:00:00Z'));
   check('đã cộng +7 giờ (sang ngày mai)', ctx2.includes('2/11/2026'), ctx2.slice(0, 200));
 
-  const withDate = withCurrentDate('Tên: abc\nMã: 1.000894');
+  // Truyền ngày cố định -> test không vỡ mỗi khi qua nửa đêm.
+  const withDate = withCurrentDate('Tên: abc\nMã: 1.000894', new Date('2026-11-01T00:30:00Z'));
   check('gắn ngày vào ngữ cảnh thủ tục', withDate.includes('1/11/2026'), withDate.slice(-150));
   check('giữ nguyên phần dữ liệu gốc', withDate.startsWith('Tên: abc'), withDate.slice(0, 60));
 }

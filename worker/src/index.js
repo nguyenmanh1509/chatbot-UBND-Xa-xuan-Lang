@@ -199,6 +199,11 @@ async function handleFacebookWebhook(request, env, cfg, ctx) {
               id: 'facebook',
               aiEnabled: ch.aiEnabled,
               greeting: ch.greeting,
+              // Chào lời ở tin nhắn đầu tiên: Meta chỉ hiện lời chào mở
+              // chat nếu Page được cấu hình trong Meta Business Suite, và
+              // API đã bỏ hỗ trợ `greeting` -> không cài được bằng script.
+              // Cách này luôn hoạt động.
+              greetFirstContact: true,
             },
             history,
           });
@@ -257,7 +262,7 @@ async function handleZaloBotWebhook(request, env, cfg, ctx) {
             cfg,
             db: env.DB,
             text: ev.text,
-            channel: { id: 'zalo-bot', aiEnabled: ch.aiEnabled },
+            channel: { id: 'zalo-bot', aiEnabled: ch.aiEnabled, greetFirstContact: true },
             history,
           });
           await zbot.sendMessages(ch, ev.chatId, r.messages);
@@ -321,7 +326,7 @@ async function handleZaloOaWebhook(request, env, cfg, ctx) {
             cfg,
             db: env.DB,
             text: ev.text,
-            channel: { id: 'zalo-oa', aiEnabled: ch.aiEnabled },
+            channel: { id: 'zalo-oa', aiEnabled: ch.aiEnabled, greetFirstContact: true },
             history,
           });
           await zoa.sendMessages(ch, ev.replyMessageId, r.messages);

@@ -57,6 +57,63 @@ export function quickReplies(cfg) {
  * @returns {Promise<{messages: string[], meta: object}>}
  */
 export async function handleMessage({ dvc, ai, cfg, db = null, text, channel, history = [] }) {
+  const r = await handleMessageInner({ dvc, ai, cfg, db, text, channel, history });
+  return prependFirstContactGreeting(r, { cfg, channel, history, text });
+}
+
+/**
+ * Chào lời khi người dùng tương tác LẦN ĐẦU.
+ *
+ * VÌ SAO CẦN:
+ * Meta CHỈ hiện lời chào (greeting) nếu Page được cấu hình trong
+ * Meta Business Suite. Nếu Page chưa có (hoặc admin chưa cài), màn hình
+ * mở chat trống trơn -> người dân tưởng bot chết.
+ *
+ * Ngoài ra, API `messenger_profile` KHÔNG còn hỗ trợ `greeting` từ 2024
+ * (danh sách param hợp lệ chỉ còn get_started, persistent_menu,
+ * whitelisted_domains, account_linking_url, home_url, ice_breakers,
+ * platform, description, commands) -> không cài được bằng script, buộc
+ * phải set tay trong Meta Business Suite.
+ *
+ * VÌ VẬY: bot tự chào ở tin nhắn đầu tiên của mỗi người dùng. Cách này
+ * luôn hoạt động, không phụ thuộc cấu hình nào của Meta.
+ *
+ * CHỈ ÁP DỤNG khi `channel.greetFirstContact = true` (các kênh nhắn tin:
+ * Messenger, Zalo). Kênh web đã có lời chào riêng khi mở widget.
+ *
+ * ĐIỀU KIỆN:
+ *   - `history` rỗng  = người dùng chưa từng nói chuyện với bot.
+ *   - Không phải lời chào (nếu là lời chào thì `handleMessageInner` đã
+ *     trả lời chào rồi, không cần chào 2 lần).
+ *   - Không phải lỗi (lỗi thì báo lỗi, không chào).
+ */
+function prependFirstContactGreeting(result, { cfg, channel, history, text }) {
+  // Kênh không bật -> không chào.
+  if (!channel?.greetFirstContact) return result;
+
+  // Đã có lịch sử -> không phải lần đầu.
+  if (!Array.isArray(history) || history.length > 0) return result;
+
+  // Tin rỗng -> handleMessageInner đã trả lời lời chào rồi.
+  if (!String(text || '').trim()) return result;
+
+  // Là lời chào -> đã trả lời chào rồi.
+  if (parseIntent(String(text).trim()).type === 'greeting') return result;
+
+  // Lỗi -> báo lỗi, không chào.
+  if (result?.meta?.error) return result;
+
+  const greeting = (channel?.greeting?.trim() || cfg.greeting || '').trim();
+  if (!greeting) return result;
+
+  // Chào trước, rồi mới tới câu trả lời.
+  return {
+    ...result,
+    messages: [greeting, ...(result.messages || [])],
+  };
+}
+
+async function handleMessageInner({ dvc, ai, cfg, db = null, text, channel, history = [] }) {
   const input = String(text || '').trim();
   const meta = { engine: 'none', scope: null, kind: null, error: null };
 
