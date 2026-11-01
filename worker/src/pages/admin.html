@@ -61,19 +61,32 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
 <main>
   <div class="card" id="loginCard">
     <h2>Đăng nhập quản trị</h2>
-    <p class="hint">Nhập mật khẩu quản trị (đặt bằng lệnh <code>wrangler secret put ADMIN_PASSWORD</code>).</p>
+    <p class="hint">Đăng nhập bằng tài khoản quản trị. Phiên đăng nhập được giữ 30 ngày — chỉ cần đăng nhập một lần.</p>
     <div class="row">
-      <input id="pwd" type="password" placeholder="Mật khẩu quản trị" style="max-width:340px">
+      <input id="username" placeholder="Tài khoản" autocomplete="username" style="max-width:220px">
+      <input id="pwd" type="password" placeholder="Mật khẩu" autocomplete="current-password" style="max-width:220px">
       <button class="grn" id="loginBtn">Đăng nhập</button>
     </div>
     <div id="loginMsg" class="msg hidden"></div>
+    <details class="guide" style="margin-top:12px">
+      <summary>Tài khoản quản trị mặc định</summary>
+      <p class="hint" style="margin-top:8px">
+        Tài khoản dự phòng được tạo tự động từ biến môi trường <code>ADMIN_PASSWORD</code>:
+        <br>• <b>Tài khoản:</b> <code>admin</code>
+        <br>• <b>Mật khẩu:</b> <code>UBNDXuanLang@2026</code>
+        <br>
+        <br>Sau khi vào được, vào tab <b>Tài khoản</b> để đổi mật khẩu hoặc tạo thêm tài khoản cho cán bộ khác.
+      </p>
+    </details>
   </div>
 
   <div id="app" class="hidden">
     <div class="tabs">
       <div class="tab act" data-tab="ch">Kênh kết nối</div>
       <div class="tab" data-tab="ai">AI &amp; Dữ liệu</div>
+      <div class="tab" data-tab="proc">Thủ tục của xã</div>
       <div class="tab" data-tab="msg">Câu chào / Thông báo</div>
+      <div class="tab" data-tab="users">Tài khoản</div>
       <div class="tab" data-tab="test">Thử nghiệm</div>
       <div class="tab" data-tab="stats">Thống kê</div>
     </div>
@@ -289,6 +302,88 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
       </div>
     </div>
 
+    <div id="tab-proc" class="hidden">
+      <div class="card">
+        <h2>Thủ tục riêng của UBND xã Xuân Lãng</h2>
+        <p class="hint">
+          Khai báo các thủ tục <b>riêng của xã</b> kèm thông tin liên hệ nội bộ.
+          Người dân chỉ cần nhắn tên thủ tục là bot trả ngay đồng chí phụ trách, bàn số, số điện thoại.
+          <br>Tất cả trường ngoài <b>Tên thủ tục</b> đều <b>có thể để trống</b> — trường trống sẽ không hiển thị trong câu trả lời.
+        </p>
+
+        <div id="procList"></div>
+
+        <details class="guide" style="margin-top:14px">
+          <summary id="procFormTitle">➕ Thêm thủ tục mới</summary>
+          <div style="margin-top:12px">
+            <div class="grid">
+              <div>
+                <label>Tên thủ tục <span style="color:#dc2626">*</span></label>
+                <input id="p.name" placeholder="Ví dụ: Cấp giấy xác nhận hộ khẩu">
+              </div>
+              <div>
+                <label>Mã thủ tục (nếu có)</label>
+                <input id="p.code" placeholder="Ví dụ: 1.000894">
+                <p class="hint">Mã trên Cổng DVC Quốc gia. Nếu có mã, hãy nhập vào ô "Tra mã" ở tab Thử nghiệm để xem thông tin gốc.</p>
+              </div>
+            </div>
+            <div class="grid">
+              <div>
+                <label>Đồng chí phụ trách</label>
+                <input id="p.officer" placeholder="Ví dụ: Nguyễn Văn A">
+              </div>
+              <div>
+                <label>Bàn số</label>
+                <input id="p.desk" placeholder="Ví dụ: Bàn số 3">
+              </div>
+            </div>
+            <div class="grid">
+              <div>
+                <label>Số điện thoại</label>
+                <input id="p.phone" placeholder="Ví dụ: 0212 3 456 789">
+              </div>
+              <div>
+                <label>Giờ làm việc</label>
+                <input id="p.office_hours" placeholder="Ví dụ: Thứ 2-5, 8h-17h">
+              </div>
+            </div>
+            <label>Từ khóa (để bot tìm đúng thủ tục khi người dân hỏi)</label>
+            <input id="p.keywords" placeholder="Ví dụ: xác nhận hộ khẩu, chứng minh hộ khẩu, tổng hợp">
+            <label>Mô tả</label>
+            <textarea id="p.description" placeholder="Mô tả ngắn về thủ tục, hồ sơ cần chuẩn bị..."></textarea>
+            <div class="grid">
+              <div>
+                <label>Link hướng dẫn / tài liệu</label>
+                <input id="p.docs_url" placeholder="https://...">
+              </div>
+              <div>
+                <label>Link Cổng DVC Quốc gia</label>
+                <input id="p.portal_url" placeholder="https://...">
+              </div>
+            </div>
+            <div class="grid">
+              <div>
+                <label>Thứ tự hiển thị</label>
+                <input id="p.sort_order" type="number" value="0">
+              </div>
+              <div>
+                <label>Trạng thái</label>
+                <div class="row" style="margin-top:8px">
+                  <input type="checkbox" id="p.active" checked>
+                  <label style="margin:0">Đang hiệu lực (bot sẽ trả lời)</label>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <button class="grn" id="procSaveBtn">Lưu thủ tục</button>
+              <button class="sec" id="procResetBtn">Xoá form</button>
+              <span id="procSaveMsg" class="hint"></span>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+
     <div id="tab-msg" class="hidden">
       <div class="card">
         <h2>Câu chào &amp; thông báo</h2>
@@ -309,6 +404,64 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
             <label>Tên xã/phường mặc định</label>
             <input id="defaultWardName">
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-users" class="hidden">
+      <div class="card">
+        <h2>Tài khoản quản trị</h2>
+        <p class="hint">Mật khẩu được lưu dạng băm (PBKDF2), không lưu dạng rõ. Phiên đăng nhập giữ 30 ngày.</p>
+        <div id="usersBox" class="hint">Đang tải...</div>
+      </div>
+
+      <div class="card">
+        <h2>Tạo tài khoản mới</h2>
+        <div class="grid">
+          <div>
+            <label>Tên đăng nhập</label>
+            <input id="u.username" placeholder="vd: nguyenvana">
+          </div>
+          <div>
+            <label>Tên hiển thị</label>
+            <input id="u.displayName" placeholder="vd: Nguyễn Văn A">
+          </div>
+        </div>
+        <div class="grid">
+          <div>
+            <label>Mật khẩu</label>
+            <input id="u.password" type="password" placeholder="Ít nhất 6 ký tự">
+          </div>
+          <div>
+            <label>Vai trò</label>
+            <select id="u.role">
+              <option value="admin">Quản trị — toàn quyền</option>
+              <option value="editor">Biên tập — thêm/sửa thủ tục</option>
+              <option value="viewer">Chỉ xem</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <button class="grn" id="userAddBtn">Tạo tài khoản</button>
+          <span id="userMsg" class="hint"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Đổi mật khẩu</h2>
+        <div class="grid">
+          <div>
+            <label>Tài khoản</label>
+            <input id="pw.username" placeholder="admin">
+          </div>
+          <div>
+            <label>Mật khẩu mới</label>
+            <input id="pw.newPassword" type="password" placeholder="Ít nhất 6 ký tự">
+          </div>
+        </div>
+        <div class="row">
+          <button class="sec" id="pwBtn">Đổi mật khẩu</button>
+          <span id="pwMsg" class="hint"></span>
         </div>
       </div>
     </div>
@@ -345,6 +498,7 @@ ol.guide-steps .hint{display:block;margin-top:2px;color:#64748b}
 const $ = (id) => document.getElementById(id);
 let TOKEN = '';
 let CFG = null;
+let USER = null;
 
 function showMsg(id, ok, text) {
   const el = $(id);
@@ -354,25 +508,76 @@ function showMsg(id, ok, text) {
   el.classList.remove('hidden');
 }
 
+/** Gọi API admin — dùng cookie phiên (đã đăng nhập). */
+async function api(path, opts = {}) {
+  const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  // Gửi Bearer token nếu còn (tương thích ngược) — cookie vẫn là chính
+  if (TOKEN) headers.Authorization = 'Bearer ' + TOKEN;
+  const r = await fetch(path, Object.assign({}, opts, { headers }));
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Lỗi ' + r.status);
+  return j;
+}
+
 async function login() {
-  TOKEN = $('pwd').value.trim();
-  if (!TOKEN) return;
+  const username = $('username').value.trim();
+  const password = $('pwd').value;
+  if (!username || !password) {
+    showMsg('loginMsg', false, 'Vui lòng nhập tài khoản và mật khẩu');
+    return;
+  }
   try {
-    const r = await fetch('/api/admin/config', { headers: { Authorization: 'Bearer ' + TOKEN } });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'Unauthorized');
-    CFG = j.config;
+    const j = await api('/api/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+    USER = { username: j.username, displayName: j.displayName, role: j.role };
     $('loginCard').classList.add('hidden');
     $('app').classList.remove('hidden');
-    $('statusBadge').textContent = 'Đã đăng nhập';
+    $('statusBadge').textContent = 'Đã đăng nhập: ' + j.username;
     $('statusBadge').className = 'badge on';
+    var lb = $('logoutBtn');
+    if (lb) lb.style.display = '';
+    // Phải nạp config TRƯỚC khi fill() — fill() đọc CFG.siteName...
+    const cfgRes = await api('/api/admin/config');
+    CFG = cfgRes.config;
     fill();
+    loadProcedures();
+    loadUsers();
   } catch (e) {
     showMsg('loginMsg', false, e.message);
   }
 }
 
+async function logout() {
+  try { await api('/api/admin/logout', { method: 'POST' }); } catch (_) { /* im lặng */ }
+  window.location.reload();
+}
+
+/** Kiểm tra phiên còn hiệu lực không (dùng khi mở trang). */
+async function restoreSession() {
+  try {
+    const j = await api('/api/admin/session');
+    USER = { username: j.username, displayName: j.displayName, role: j.role };
+    $('loginCard').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    $('statusBadge').textContent = 'Đã đăng nhập: ' + j.username;
+    $('statusBadge').className = 'badge on';
+    var lb2 = $('logoutBtn');
+    if (lb2) lb2.style.display = '';
+    const cfgRes = await api('/api/admin/config');
+    CFG = cfgRes.config;
+    fill();
+    loadProcedures();
+    loadUsers();
+  } catch (_) {
+    // Chưa đăng nhập -> hiện form
+  }
+}
+
 function fill() {
+  // Chưa có config (chưa nạp xong) -> không làm gì, tránh lỗi TypeError.
+  if (!CFG) return;
   const flat = ['siteName', 'greeting', 'fallbackMessage', 'errorMessage', 'defaultWardCode', 'defaultWardName'];
   for (const k of flat) {
     const el = $(k);
@@ -423,13 +628,10 @@ function collect() {
 async function save() {
   $('saveBtn').disabled = true;
   try {
-    const r = await fetch('/api/admin/config', {
+    const j = await api('/api/admin/config', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN },
       body: JSON.stringify({ config: collect() })
     });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error);
     CFG = j.config;
     fill();
     $('saveMsg').textContent = '✔ Đã lưu lúc ' + new Date().toLocaleTimeString('vi-VN');
@@ -443,12 +645,10 @@ async function save() {
 async function doTest(ch) {
   const boxId = 'res-' + ch;
   try {
-    const r = await fetch('/api/admin/test', {
+    const j = await api('/api/admin/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN },
       body: JSON.stringify({ channel: ch })
     });
-    const j = await r.json();
     const res = j.results ? j.results[ch] : null;
     if (!res) { showMsg(boxId, false, 'Không có kết quả trả về'); return; }
     showMsg(boxId, res.ok, res.detail || res.error || '');
@@ -462,13 +662,10 @@ async function simulate() {
   if (!text) return;
   $('tqRes').innerHTML = '';
   try {
-    const r = await fetch('/api/admin/simulate', {
+    const j = await api('/api/admin/simulate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN },
       body: JSON.stringify({ text: text })
     });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error);
     const box = document.createElement('div');
     box.className = 'msg';
     box.style.background = '#f1f5f9';
@@ -487,9 +684,7 @@ async function simulate() {
 async function loadStats() {
   $('statsBox').textContent = 'Đang tải...';
   try {
-    const r = await fetch('/api/admin/stats', { headers: { Authorization: 'Bearer ' + TOKEN } });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error);
+    const j = await api('/api/admin/stats');
     const s = j.stats || {};
     $('statsBox').innerHTML =
       '<b>Tổng số lượt trả lời:</b> ' + (s.replies || 0) + '<br>' +
@@ -505,26 +700,244 @@ async function registerZaloBotWebhook() {
   const url = prompt('Nhập URL webhook đầy đủ (ví dụ https://bot-worker.workers.dev/webhook/zalo-bot):');
   if (!url) return;
   try {
-    const r = await fetch('/api/admin/zalo-bot-webhook', {
+    const j = await api('/api/admin/zalo-bot-webhook', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN },
       body: JSON.stringify({ url: url })
     });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error);
     showMsg('res-zb-webhook', true, JSON.stringify(j.result || {}).slice(0, 400));
   } catch (e) {
     showMsg('res-zb-webhook', false, e.message);
   }
 }
 
+/* ---------------- Thủ tục riêng của xã ---------------- */
+
+let PROCEDURES = [];
+let EDITING_PROC_ID = null;
+
+function procFieldValue(f) {
+  const el = $('p.' + f);
+  if (!el) return '';
+  if (el.type === 'checkbox') return el.checked;
+  return el.value.trim();
+}
+
+function resetProcForm() {
+  EDITING_PROC_ID = null;
+  for (const f of ['name','code','officer','desk','phone','office_hours','keywords','description','docs_url','portal_url']) {
+    const el = $('p.' + f);
+    if (el) el.value = '';
+  }
+  const so = $('p.sort_order'); if (so) so.value = '0';
+  const ac = $('p.active'); if (ac) ac.checked = true;
+  $('procFormTitle').textContent = '➕ Thêm thủ tục mới';
+  $('procSaveBtn').textContent = 'Lưu thủ tục';
+  $('procSaveMsg').textContent = '';
+}
+
+async function loadProcedures() {
+  try {
+    const j = await api('/api/admin/procedures');
+    PROCEDURES = j.procedures || [];
+    renderProcedures();
+  } catch (e) {
+    $('procList').innerHTML = '<div class="msg err">✖ ' + e.message + '</div>';
+  }
+}
+
+function renderProcedures() {
+  const box = $('procList');
+  if (!box) return;
+  if (!PROCEDURES.length) {
+    box.innerHTML = '<div class="msg ok">Chưa có thủ tục nào. Bấm "Thêm thủ tục mới" bên dưới để khai báo.</div>';
+    return;
+  }
+  const rows = PROCEDURES.map(function (p) {
+    const info = [];
+    if (p.officer) info.push('Đồng chí: ' + escapeHtml(p.officer));
+    if (p.desk) info.push('Bàn: ' + escapeHtml(p.desk));
+    if (p.phone) info.push('ĐT: ' + escapeHtml(p.phone));
+    if (p.office_hours) info.push('Giờ: ' + escapeHtml(p.office_hours));
+    return '<div class="card" style="margin:10px 0;box-shadow:none;border:1px solid #e2e8f0">' +
+      '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start">' +
+        '<div><b>' + escapeHtml(p.name) + '</b> ' +
+          (p.code ? '<span class="badge warn" style="margin-left:6px">' + escapeHtml(p.code) + '</span>' : '') +
+          (p.active ? '' : '<span class="badge off" style="margin-left:6px">Đã ẩn</span>') +
+          (info.length ? '<div class="hint">' + info.join(' · ') + '</div>' : '') +
+        '</div>' +
+        '<div><button class="sec" data-edit="' + p.id + '">Sửa</button> ' +
+        '<button class="sec" data-del="' + p.id + '">Xoá</button></div>' +
+      '</div></div>';
+  }).join('');
+  box.innerHTML = rows;
+
+  box.querySelectorAll('[data-edit]').forEach(function (b) {
+    b.onclick = function () { editProcedure(Number(b.dataset.edit)); };
+  });
+  box.querySelectorAll('[data-del]').forEach(function (b) {
+    b.onclick = function () { deleteProcedure(Number(b.dataset.del)); };
+  });
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function editProcedure(id) {
+  const p = PROCEDURES.find(function (x) { return x.id === id; });
+  if (!p) return;
+  EDITING_PROC_ID = id;
+  for (const f of ['name','code','officer','desk','phone','office_hours','keywords','description','docs_url','portal_url']) {
+    const el = $('p.' + f);
+    if (el) el.value = p[f] || '';
+  }
+  const so = $('p.sort_order'); if (so) so.value = p.sort_order || 0;
+  const ac = $('p.active'); if (ac) ac.checked = !!p.active;
+  $('procFormTitle').textContent = '✏️ Sửa thủ tục: ' + p.name;
+  $('procSaveBtn').textContent = 'Cập nhật';
+  const d = document.querySelector('details.guide[open]');
+  if (d) d.open = true;
+  const target = $('procFormTitle').closest('details');
+  if (target) { target.open = true; target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+}
+
+async function deleteProcedure(id) {
+  const p = PROCEDURES.find(function (x) { return x.id === id; });
+  if (!p) return;
+  if (!confirm('Xoá thủ tục "' + p.name + '"?')) return;
+  try {
+    await api('/api/admin/procedures/delete', { method: 'POST', body: JSON.stringify({ id: id }) });
+    $('procSaveMsg').textContent = '✔ Đã xoá';
+    loadProcedures();
+  } catch (e) {
+    $('procSaveMsg').textContent = '✖ ' + e.message;
+  }
+}
+
+async function saveProcedure() {
+  const payload = {};
+  for (const f of ['name','code','officer','desk','phone','office_hours','keywords','description','docs_url','portal_url','sort_order']) {
+    payload[f] = procFieldValue(f);
+  }
+  payload.active = procFieldValue('active');
+  if (!payload.name) {
+    $('procSaveMsg').textContent = '✖ Vui lòng nhập Tên thủ tục';
+    return;
+  }
+  try {
+    if (EDITING_PROC_ID) {
+      await api('/api/admin/procedures/update', {
+        method: 'POST',
+        body: JSON.stringify({ id: EDITING_PROC_ID, procedure: payload })
+      });
+      $('procSaveMsg').textContent = '✔ Đã cập nhật';
+    } else {
+      await api('/api/admin/procedures', {
+        method: 'POST',
+        body: JSON.stringify({ procedure: payload })
+      });
+      $('procSaveMsg').textContent = '✔ Đã thêm thủ tục';
+    }
+    resetProcForm();
+    loadProcedures();
+  } catch (e) {
+    $('procSaveMsg').textContent = '✖ ' + e.message;
+  }
+}
+
+/* ---------------- Tài khoản ---------------- */
+
+async function loadUsers() {
+  try {
+    const j = await api('/api/admin/users');
+    const rows = (j.users || []).map(function (u) {
+      return '<tr><td><b>' + escapeHtml(u.username) + '</b></td>' +
+        '<td>' + escapeHtml(u.display_name || '-') + '</td>' +
+        '<td>' + escapeHtml(u.role) + '</td>' +
+        '<td>' + (u.is_default ? '<span class="badge warn">dự phòng</span>' : '') + '</td>' +
+        '<td>' + (u.active ? '<span class="badge on">hoạt động</span>' : '<span class="badge off">khoá</span>') + '</td>' +
+        '<td class="p">' + escapeHtml(u.last_login_at || 'chưa đăng nhập') + '</td></tr>';
+    }).join('');
+    $('usersBox').innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+      '<tr style="background:#f1f5f9"><th style="text-align:left;padding:6px">Tài khoản</th>' +
+      '<th style="text-align:left;padding:6px">Tên hiển thị</th><th style="text-align:left;padding:6px">Vai trò</th>' +
+      '<th style="text-align:left;padding:6px">Loại</th><th style="text-align:left;padding:6px">Trạng thái</th>' +
+      '<th style="text-align:left;padding:6px">Đăng nhập cuối</th></tr>' + rows + '</table>';
+  } catch (e) {
+    $('usersBox').innerHTML = '<div class="msg err">✖ ' + e.message + '</div>';
+  }
+}
+
+async function addUser() {
+  const username = $('u.username').value.trim();
+  const password = $('u.password').value;
+  if (!username || !password) {
+    $('userMsg').textContent = '✖ Vui lòng nhập tên đăng nhập và mật khẩu';
+    return;
+  }
+  try {
+    await api('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: username,
+        password: password,
+        displayName: $('u.displayName').value.trim(),
+        role: $('u.role').value
+      })
+    });
+    $('userMsg').textContent = '✔ Đã tạo tài khoản ' + username;
+    $('u.username').value = ''; $('u.password').value = ''; $('u.displayName').value = '';
+    loadUsers();
+  } catch (e) {
+    $('userMsg').textContent = '✖ ' + e.message;
+  }
+}
+
+async function changePw() {
+  const username = $('pw.username').value.trim();
+  const newPassword = $('pw.newPassword').value;
+  if (!username || !newPassword) {
+    $('pwMsg').textContent = '✖ Vui lòng nhập tài khoản và mật khẩu mới';
+    return;
+  }
+  try {
+    await api('/api/admin/password', {
+      method: 'POST',
+      body: JSON.stringify({ username: username, newPassword: newPassword })
+    });
+    $('pwMsg').textContent = '✔ Đã đổi mật khẩu cho ' + username;
+    $('pw.newPassword').value = '';
+  } catch (e) {
+    $('pwMsg').textContent = '✖ ' + e.message;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   $('loginBtn').onclick = login;
+  $('username').addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); });
   $('pwd').addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); });
   $('saveBtn').onclick = save;
   $('simBtn').onclick = simulate;
   $('statsBtn').onclick = loadStats;
   $('regZbWebhook').onclick = registerZaloBotWebhook;
+  $('procSaveBtn').onclick = saveProcedure;
+  $('procResetBtn').onclick = resetProcForm;
+  $('userAddBtn').onclick = addUser;
+  $('pwBtn').onclick = changePw;
+
+  // Nút đăng xuất trên header (chỉ hiện sau khi đăng nhập)
+  var logoutBtn = document.createElement('button');
+  logoutBtn.id = 'logoutBtn';
+  logoutBtn.textContent = 'Đăng xuất';
+  logoutBtn.style.background = 'rgba(255,255,255,.2)';
+  logoutBtn.style.display = 'none';
+  logoutBtn.onclick = logout;
+  document.querySelector('header').appendChild(logoutBtn);
+
+  // Tự khôi phục phiên đăng nhập đã lưu (cookie 30 ngày)
+  restoreSession();
 
   // Tự động điền URL webhook thật (dựa trên domain đang truy cập)
   var ORIGIN = location.origin;
@@ -547,7 +960,7 @@ document.addEventListener('DOMContentLoaded', function () {
     b.onclick = function () {
       document.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('act'); });
       b.classList.add('act');
-      ['ch', 'ai', 'msg', 'test', 'stats'].forEach(function (t) { $('tab-' + t).classList.add('hidden'); });
+      ['ch', 'ai', 'proc', 'msg', 'users', 'test', 'stats'].forEach(function (t) { $('tab-' + t).classList.add('hidden'); });
       $('tab-' + b.dataset.tab).classList.remove('hidden');
       if (b.dataset.tab === 'stats') loadStats();
     };

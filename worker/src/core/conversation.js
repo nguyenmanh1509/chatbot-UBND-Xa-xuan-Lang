@@ -13,6 +13,7 @@ import {
   asArray,
 } from './retrieve.js';
 import { parseIntent, stripVN } from './nlu.js';
+import { searchLocalProcedures, localProcedureToReply, localProcedureToText } from './procedures.js';
 
 /** Tạo engine từ config. */
 export function makeEngines(cfg, env = {}) {
@@ -47,12 +48,13 @@ export function quickReplies(cfg) {
  * @param {DvcClient} deps.dvc
  * @param {AiEngine} deps.ai
  * @param {object} deps.cfg
+ * @param {object} deps.db       - D1 binding (thủ tục riêng của xã). Tuỳ chọn.
  * @param {string} deps.text      - nội dung người dùng
  * @param {object} deps.channel   - { id, name, greeting, aiEnabled }
  * @param {Array}  deps.history   - [{ role, text }]
  * @returns {Promise<{messages: string[], meta: object}>}
  */
-export async function handleMessage({ dvc, ai, cfg, text, channel, history = [] }) {
+export async function handleMessage({ dvc, ai, cfg, db = null, text, channel, history = [] }) {
   const input = String(text || '').trim();
   const meta = { engine: 'none', scope: null, kind: null, error: null };
 
@@ -104,6 +106,43 @@ export async function handleMessage({ dvc, ai, cfg, text, channel, history = [] 
   }
 
   try {
+    // ---------------------------------------------------------------
+    //  THỦ TỤC RIÊNG CỦA XÃ (D1) — tra cứu TRƯỚC DVC.
+    //
+    // VÌ SAO trước: thủ tục do UBND xã khai báo là thông tin nội bộ
+    // (đồng chí phụ trách, bàn số, số điện thoại) mà Cổng DVC Quốc gia
+    // không có. Nếu tra DVC trước sẽ ra kết quả chung chung hoặc không
+    // có kết quả -> người dân không biết hỏi ai.
+    // ---------------------------------------------------------------
+    if (db && !intent.code) {
+      const local = await searchLocalProcedures(db, input, { limit: 3 });
+      const best = local[0];
+
+      // CHỈ dùng thủ tục của xã khi câu hỏi khớp MẠNH:
+      //   - trùng chính xác tên/mã/từ khoá admin khai báo, HOẶC
+      //   - Dice >= 0.75 (câu hỏi gần như trùng tên thủ tục).
+      //
+      // VÌ SAO: câu hỏi chung ("hộ khẩu", "đăng ký kết hôn") phải tra
+      // Cổng DVC Quốc gia để người dân thấy ĐẦY ĐỦ danh sách. Nếu để
+      // thủ tục của xã cướp mất câu hỏi chung thì người dân sẽ bị giới
+      // hạn trong 1 thủ tục duy nhất -> thiếu thông tin.
+      const strongMatch = best && (best.exact || best.dice >= 0.75);
+
+      if (strongMatch) {
+        const p = best.procedure;
+        meta.kind = 'local';
+        meta.scope = 'ward-local';
+        meta.localProcedureId = p.id;
+
+        // Trả về bản tất định (có đủ bàn số, số điện thoại) để người
+        // dân thấy chính xác, không phụ thuộc AI có "diễn giải" mất thông tin.
+        return {
+          messages: splitForChat(localProcedureToReply(p)),
+          meta,
+        };
+      }
+    }
+
     // Lấy ngữ cảnh từ DVC
     const ctx = await buildContext(dvc, input, {
       defaultWardCode: cfg.defaultWardCode,

@@ -23,6 +23,26 @@ import { makeEngines, handleMessage } from './core/conversation.js';
 import * as fb from './channels/facebook.js';
 import * as zbot from './channels/zalo-bot.js';
 import * as zoa from './channels/zalo-oa.js';
+import {
+  login,
+  listUsers,
+  createUser,
+  changePassword,
+  ensureDefaultUser,
+  createSessionToken,
+  verifySessionToken,
+  readSessionCookie,
+  sessionCookieHeader,
+  clearSessionCookieHeader,
+  timingSafeEqual,
+} from './core/auth.js';
+import {
+  listProcedures,
+  getProcedureById,
+  insertProcedure,
+  updateProcedure,
+  deleteProcedure,
+} from './core/procedures.js';
 import ADMIN_HTML from './pages/admin.html';
 import CHAT_HTML from './pages/chat.html';
 import PRIVACY_HTML from './pages/privacy.html';
@@ -44,16 +64,35 @@ function fail(msg, status = 400) {
   return json({ ok: false, error: msg }, status);
 }
 
-/** Kiểm tra quyền admin qua header Authorization: Bearer <password>. */
+/**
+ * Kiểm tra quyền admin qua header Authorization: Bearer <password>.
+ *
+ * GIỮ LẠI để tương thích ngược: script test nội bộ và các lệnh curl
+ * cũ vẫn dùng được. Cơ chế chính thức giờ là đăng nhập tài khoản ->
+ * cookie phiên (xem handleAdminApi).
+ */
 function isAdmin(request, env) {
   const h = request.headers.get('Authorization') || '';
   const token = h.startsWith('Bearer ') ? h.slice(7).trim() : '';
   const expected = env.ADMIN_PASSWORD || '';
   if (!expected || !token) return false;
-  if (token.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < token.length; i++) diff |= token.charCodeAt(i) ^ expected.charCodeAt(i);
-  return diff === 0;
+  return timingSafeEqual(token, expected);
+}
+
+/**
+ * Lấy username đang đăng nhập.
+ *
+ * Ưu tiên cookie phiên (đăng nhập bằng tài khoản). Nếu không có cookie thì
+ * thử Bearer token (tương thích ngược) -> trả 'admin-token'.
+ */
+async function currentAdminUser(request, env) {
+  const cookieToken = readSessionCookie(request);
+  if (cookieToken) {
+    const u = await verifySessionToken(env, cookieToken);
+    if (u) return u;
+  }
+  if (isAdmin(request, env)) return 'admin-token';
+  return null;
 }
 
 /** Ghi log vào KV (nếu có). */
@@ -147,6 +186,7 @@ async function handleFacebookWebhook(request, env, cfg, ctx) {
             dvc,
             ai,
             cfg,
+            db: env.DB,
             text: inputText,
             channel: {
               id: 'facebook',
@@ -208,6 +248,7 @@ async function handleZaloBotWebhook(request, env, cfg, ctx) {
             dvc,
             ai,
             cfg,
+            db: env.DB,
             text: ev.text,
             channel: { id: 'zalo-bot', aiEnabled: ch.aiEnabled },
             history,
@@ -271,6 +312,7 @@ async function handleZaloOaWebhook(request, env, cfg, ctx) {
             dvc,
             ai,
             cfg,
+            db: env.DB,
             text: ev.text,
             channel: { id: 'zalo-oa', aiEnabled: ch.aiEnabled },
             history,
@@ -314,6 +356,7 @@ async function handleChatApi(request, env, cfg) {
       dvc,
       ai,
       cfg,
+      db: env.DB,
       text,
       channel: { id: 'web', aiEnabled: body.aiEnabled !== false },
       history,
@@ -381,9 +424,158 @@ async function handleDeleteRequest(request, env) {
   return ok({ id, removedChannels: removed });
 }
 
-/** API quản trị. */
+/**
+ * API quản trị.
+ *
+ * Xác thực bằng cookie phiên (đăng nhập tài khoản) hoặc Bearer token
+ * (tương thích ngược cho script test).
+ */
 async function handleAdminApi(request, env, cfg, pathname) {
-  if (!isAdmin(request, env)) return fail('Unauthorized', 401);
+  const adminUser = await currentAdminUser(request, env);
+
+  // ------------------------------------------------------------------
+  //  ĐĂNG NHẬP / ĐĂNG XUẤT — không cần xác thực trước.
+  // ------------------------------------------------------------------
+  if (pathname === '/api/admin/login' && request.method === 'POST') {
+    let body;
+    try {
+      body = await request.json();
+    } catch (_) {
+      return fail('Body phải là JSON');
+    }
+    // Đảm bảo luôn có ít nhất 1 tài khoản (tạo từ ADMIN_PASSWORD nếu chưa có)
+    await ensureDefaultUser(env.DB, env);
+
+    const r = await login(env.DB, body?.username, body?.password);
+    if (!r.ok) {
+      await logEvent(env, { channel: 'admin', type: 'login_failed', user: String(body?.username || '') });
+      return fail(r.error, 401);
+    }
+
+    const token = await createSessionToken(env, r.user.username);
+    const isLocal = new URL(request.url).hostname === '127.0.0.1' || new URL(request.url).hostname === 'localhost';
+    await logEvent(env, { channel: 'admin', type: 'login_ok', user: r.user.username });
+
+    const res = json({
+      ok: true,
+      username: r.user.username,
+      displayName: r.user.display_name || '',
+      role: r.user.role,
+    });
+    res.headers.append('Set-Cookie', sessionCookieHeader(token, { secure: !isLocal }));
+    return res;
+  }
+
+  if (pathname === '/api/admin/logout' && request.method === 'POST') {
+    const res = ok({});
+    const isLocal = new URL(request.url).hostname === '127.0.0.1' || new URL(request.url).hostname === 'localhost';
+    res.headers.append('Set-Cookie', clearSessionCookieHeader({ secure: !isLocal }));
+    return res;
+  }
+
+  // ------------------------------------------------------------------
+  //  AI HỘI THOẠI — tự đăng nhập bằng tài khoản qua UI.
+  // ------------------------------------------------------------------
+  if (pathname === '/api/admin/session' && request.method === 'GET') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    const users = await listUsers(env.DB);
+    const me = users.find((u) => u.username === adminUser);
+    return ok({
+      username: adminUser,
+      displayName: me?.display_name || '',
+      role: me?.role || 'admin',
+    });
+  }
+
+  if (pathname === '/api/admin/users' && request.method === 'GET') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    return ok({ users: await listUsers(env.DB) });
+  }
+
+  if (pathname === '/api/admin/users' && request.method === 'POST') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    let body;
+    try {
+      body = await request.json();
+    } catch (_) {
+      return fail('Body phải là JSON');
+    }
+    const r = await createUser(env.DB, body || {});
+    if (!r.ok) return fail(r.error, 400);
+    await logEvent(env, { channel: 'admin', type: 'user_created', user: r.username });
+    return ok({ username: r.username });
+  }
+
+  if (pathname === '/api/admin/password' && request.method === 'POST') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    let body;
+    try {
+      body = await request.json();
+    } catch (_) {
+      return fail('Body phải là JSON');
+    }
+    const r = await changePassword(env.DB, body?.username || adminUser, body?.newPassword);
+    if (!r.ok) return fail(r.error, 400);
+    await logEvent(env, { channel: 'admin', type: 'password_changed', user: body?.username || adminUser });
+    return ok({});
+  }
+
+  // ------------------------------------------------------------------
+  //  THỦ TỤC RIÊNG CỦA XÃ (D1)
+  // ------------------------------------------------------------------
+  if (pathname === '/api/admin/procedures' && request.method === 'GET') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    return ok({ procedures: await listProcedures(env.DB) });
+  }
+
+  if (pathname === '/api/admin/procedures' && request.method === 'POST') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    let body;
+    try {
+      body = await request.json();
+    } catch (_) {
+      return fail('Body phải là JSON');
+    }
+    const r = await insertProcedure(env.DB, body?.procedure || body || {});
+    if (!r.ok) return fail(r.error, 400);
+    await logEvent(env, { channel: 'admin', type: 'procedure_created', id: r.id });
+    return ok({ id: r.id });
+  }
+
+  if (pathname === '/api/admin/procedures/update' && request.method === 'POST') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    let body;
+    try {
+      body = await request.json();
+    } catch (_) {
+      return fail('Body phải là JSON');
+    }
+    const id = Number(body?.id);
+    if (!id) return fail('Thiếu id thủ tục');
+    const r = await updateProcedure(env.DB, id, body?.procedure || {});
+    if (!r.ok) return fail(r.error, 400);
+    await logEvent(env, { channel: 'admin', type: 'procedure_updated', id });
+    return ok({});
+  }
+
+  if (pathname === '/api/admin/procedures/delete' && request.method === 'POST') {
+    if (!adminUser) return fail('Unauthorized', 401);
+    let body;
+    try {
+      body = await request.json();
+    } catch (_) {
+      return fail('Body phải là JSON');
+    }
+    const id = Number(body?.id);
+    if (!id) return fail('Thiếu id thủ tục');
+    const r = await deleteProcedure(env.DB, id);
+    if (!r.ok) return fail(r.error, 400);
+    await logEvent(env, { channel: 'admin', type: 'procedure_deleted', id });
+    return ok({});
+  }
+
+  // Từ đây trở đi đều cần quyền admin
+  if (!adminUser) return fail('Unauthorized', 401);
 
   // Lấy config
   if (pathname === '/api/admin/config' && request.method === 'GET') {
@@ -574,6 +766,7 @@ async function handleAdminApi(request, env, cfg, pathname) {
         dvc,
         ai,
         cfg,
+        db: env.DB,
         text,
         channel: {
           id: 'simulate',
@@ -587,6 +780,7 @@ async function handleAdminApi(request, env, cfg, pathname) {
         engine: r.meta.engine,
         scope: r.meta.scope,
         kind: r.meta.kind,
+        error: r.meta.error || null,
       });
     } catch (err) {
       return fail(String(err?.message || err), 500);

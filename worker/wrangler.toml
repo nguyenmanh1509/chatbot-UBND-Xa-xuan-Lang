@@ -36,6 +36,12 @@ id = "f4e0ec9ef1144ac69e9bd7064ea760db"
 binding = "LOGS"
 id = "c0537ffcf3fb4499bdcf16e3785608c2"
 
+# --- D1: thủ tục riêng của xã + tài khoản admin ---
+[[d1_databases]]
+binding = "DB"
+database_name = "ubnd_xuanlang_procs"
+database_id = "0b80ae18-4dce-461a-9a87-253432c92d64"
+
 # --- Gán KV cho phát triển cục bộ ---
 # Wrangler dev dùng id ở trên; nếu muốn tách riêng cho local thì bỏ comment
 # các khối trên và dùng id local.
