@@ -13,7 +13,7 @@ import {
   asArray,
 } from './retrieve.js';
 import { parseIntent, stripVN } from './nlu.js';
-import { searchLocalProcedures, localProcedureToReply, localProcedureToText, normalizeDesk, normalizeOfficer, getProcedureByCode } from './procedures.js';
+import { searchLocalProcedures, localProcedureToReply, localProcedureToText, normalizeDesk, normalizeOfficer, officerPhrase, getProcedureByCode } from './procedures.js';
 import { searchWardIndex, STRONG_SCORE, cleanSummary, isTimeQuestion } from './ward-search.js';
 
 /** Tạo engine từ config. */
@@ -335,7 +335,7 @@ async function handleMessageInner({ dvc, ai, cfg, db = null, text, channel, hist
           aiCtx +=
             '\n\nTHÔNG TIN TIẾP NHẬN TẠI XÃ XUÂN LÃNG:\n' +
             localProcedureToText(localByCode) +
-            `\n(Nhắc anh/chị: đến gặp đồng chí ${normalizeOfficer(localByCode.officer)}` +
+            `\n(Nhắc anh/chị: đến gặp ${officerPhrase(localByCode.officer)}` +
             (localByCode.desk ? ` tại bàn số ${normalizeDesk(localByCode.desk)}` : '') +
             (localByCode.phone ? `, số điện thoại ${localByCode.phone}` : '') +
             ` tại ${cfg.officeName || 'Trung tâm Phục vụ hành chính công xã Xuân Lãng'}.)`;

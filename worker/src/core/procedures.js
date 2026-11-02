@@ -763,11 +763,31 @@ export function localProcedureToText(p) {
 /**
  * Chuẩn hoá tên đồng chí: bỏ tiền tố "Đồng chí"/"đồng chí" vì câu trả lời
  * đã tự thêm "đồng chí" -> tránh lặp "đồng chí Đồng chí Nguyễn Văn An".
+ *
+ * KHÔNG bỏ "Chị"/"Anh" vì đó là cách xưng hô chứ không phải tiền tố thừa:
+ * tên lưu trong DB là "Chị B" -> bỏ đi sẽ thành "B" (mất tên).
  */
 export function normalizeOfficer(officer) {
   return String(officer || '')
-    .replace(/^\s*(đồng\s*chí|anh\s*chí|chị|anh)\s+/i, '')
+    .replace(/^\s*(đồng\s*chí|anh\s*chí)\s+/i, '')
     .trim();
+}
+
+/**
+ * Cụm gọi đồng chí phụ trách, dùng trong câu "Anh/chị hãy đến gặp ...".
+ * - "Đồng chí Nguyễn Văn An" -> "đồng chí Nguyễn Văn An"
+ * - "Chị B"                  -> "chị B"          (không thêm "đồng chí")
+ * - "Nguyễn Văn An"          -> "đồng chí Nguyễn Văn An"
+ */
+export function officerPhrase(officer) {
+  const name = normalizeOfficer(officer);
+  if (!name) return '';
+  const m = name.match(/^(chị|anh)\s+/i);
+  if (m) {
+    // Hạ chữ cái đầu của cách xưng hô cho vừa câu: "chị B".
+    return name.replace(/^(chị|anh)/i, (w) => w.toLowerCase());
+  }
+  return `đồng chí ${name}`;
 }
 
 /**
@@ -828,7 +848,7 @@ export function localProcedureToReply(p, opts = {}) {
     if (p.phone) bits.push(`số điện thoại ${p.phone}`);
     lines.push('');
     lines.push(
-      `Anh/chị hãy đến gặp đồng chí ${normalizeOfficer(p.officer)}` +
+      `Anh/chị hãy đến gặp ${officerPhrase(p.officer)}` +
         (bits.length ? ` ${bits.join(', ')}` : '') +
         ` tại ${office}.`
     );
